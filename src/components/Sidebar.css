@@ -1,0 +1,226 @@
+/* ================= BASE SIDEBAR ================= */
+.sidebar {
+  width: 230px;
+  height: 100%;
+  background-color: #F1F5F9;
+  color: #333;
+  border-right: 1px solid #e5e9f2;
+
+  position: sticky;
+  top: 50px;
+  left: 0;
+
+  transition: width 0.25s ease;
+  z-index: 1000;
+}
+
+/* ================= HEADER ================= */
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+}
+
+.sidebar-head {
+  font-size: 20px;
+  margin: 0;
+}
+
+.collapse-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 24px;
+  color: #333;
+}
+
+/* ================= MENU ================= */
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  height: calc(100% - 60px);
+  overflow-y: auto;
+}
+
+.sidebar li {
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+.sidebar li:hover {
+  background-color: #5995c6;
+  color: #333;
+  font-weight: 600;
+  border-radius: 12px;
+}
+
+.sidebar li.active {
+  background-color: #8bb9de;
+  color: #333;
+  font-weight: 600;
+  border-radius: 8px;
+  margin: 2px 0;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.sidebar-icon {
+  font-size: 24px;
+  margin-right: 10px;
+}
+
+.menu-label {
+  font-size: 16px;
+}
+
+/* COLLAPSED (DESKTOP) */
+.sidebar.collapsed {
+  width: 70px;
+}
+
+.sidebar.collapsed .sidebar-head {
+  display: none;
+}
+
+.sidebar.collapsed li {
+  display: flex;
+  justify-content: center;
+}
+
+.sidebar.collapsed .menu-label {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-icon {
+  margin-right: 0;
+  font-size: 22px;
+}
+
+/* ================= TOOLTIP ================= */
+.tooltip {
+  position: absolute;
+  left: 48px;
+  top: 50%;
+  transform: translateY(-50%) translateX(-5px);
+
+  background-color: #1f2937;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 2000;
+}
+
+.sidebar.collapsed li:hover .tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+.tooltip::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent #1f2937 transparent transparent;
+}
+
+/* ================= MOBILE TOGGLE ================= */
+.sidebar-toggle-btn {
+  position: fixed;
+  top: 50px;
+  width: 40px;
+  height: 44px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #fff;
+  cursor: pointer;
+  z-index: 1200;
+}
+
+.sidebar-toggle-btn i {
+  font-size: 22px;
+}
+
+/* MOBILE CLOSE BUTTON */
+.mobile-close-btn {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: #333;
+}
+
+/* MOBILE VIEW */
+@media (max-width: 767px) {
+  .sidebar {
+    position: fixed;
+    top: 50px;
+    left: 0;
+    height: calc(100vh - 50px);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .sidebar li {
+    padding: 6px 20px;
+  }
+
+  .menu-label {
+    font-size: 14px;
+  }
+
+  .sidebar-header {
+    padding: 6px 20px;
+  }
+
+  .mobile-close-btn {
+    display: block;
+  }
+
+  .collapse-btn {
+    display: none;
+  }
+
+  .sidebar.open + .sidebar-toggle-btn {
+    display: none;
+  }
+}
+
+@media (min-width: 480px) and (max-width: 768px) {
+  .sidebar li {
+    padding: 6px 20px;
+  }
+
+  .menu-label {
+    font-size: 14px;
+  }
+}
+
+
+
+/* ================= DESKTOP ================= */
+@media (min-width: 768px) {
+  .sidebar-toggle-btn {
+    display: none;
+  }
+}

@@ -1,0 +1,263 @@
+/* ----------- ROOT CONTAINER ----------- */
+.page-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-container {
+  flex: 1;
+  background: #f8fafc;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.icon-btn {
+    font-size: 20px;
+    font-weight: 800;
+    color: #A6A6A6;
+    cursor: pointer;
+    position: relative; 
+    /* margin-top: 20px; */
+}
+
+.icon:hover {
+    color: #333;
+}
+
+.form-title {
+    margin: 0;
+}
+
+
+.form-root {
+  display: flex;
+  justify-content: center;
+  padding: 30px;
+  background-color: #ECEFF1;
+}
+
+.form-card {
+  width: 100%;
+  max-width: 1450px;
+  padding: 60px 30px;
+}
+
+/* ----------- FORM LABEL ----------- */
+.form-label {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  color: #333;
+  gap: 6px;
+}
+
+.form-required {
+  color: #d9534f;
+  font-size: 13px;
+  margin-left: 3px;
+}
+
+.form-optional {
+  color: #888;
+  font-size: 13px;
+  margin-left: 3px;
+}
+
+/* ----------- TOOLTIP ICON ----------- */
+.info-icon {
+  font-size: 16px;
+  color: #888;
+  cursor: pointer;
+  position: relative;
+}
+
+/* Tooltip to the RIGHT of the icon */
+.info-icon:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 22px;       /* Push tooltip to the right side */
+  top: 50%;
+  transform: translateY(-50%);
+  /* background: #333; */
+  color: #888;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 6px 10px;
+  border-radius: 4px;
+  white-space: normal;
+  width: max-content;
+  /* max-width: 220px; */
+  z-index: 20;
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+  transition: border 0.2s;
+  margin: 8px 0;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  border-color: #3d8ac1;
+}
+
+.form-textarea {
+  resize: vertical;
+}
+
+/* Invalid input */
+.input-invalid {
+  border-color: #d9534f !important;
+}
+
+.input-error {
+  margin: 0;
+  margin-bottom: 15px;
+  font-size: 13px;
+  text-align: left;
+  color: #d9534f;
+}
+
+/* Make toggle sit on its own line under the label */
+.toggle-group {
+  display: block;
+  margin-top: 8px;
+  margin-bottom: 12px;
+
+  /* pill container */
+  width: fit-content;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e2e2;
+  background: #fff;
+  padding: 0;
+}
+
+/* The YES/NO buttons */
+.toggle-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-block;
+  border: 0;
+  background: transparent;
+  padding: 10px 26px;
+  margin: 0;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  min-width: 84px;
+  color: #333;
+  transition: background .12s ease, color .12s ease, transform .08s ease;
+}
+
+/* small divider between halves */
+.toggle-btn:first-child {
+  border-right: 1px solid rgba(0,0,0,0.04);
+}
+
+/* hint color when inactive */
+.toggle-btn.yes {
+  color: #1f7a3b;
+}
+
+.toggle-btn.no {
+  color: #b02a2a;
+}
+
+/* active YES */
+.toggle-btn.yes.active {
+  background: #28a745;
+  color: #fff;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.02);
+  transform: translateY(-0.5px);
+}
+
+/* active NO */
+.toggle-btn.no.active {
+  background: #dc3545;
+  color: #fff;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.02);
+  transform: translateY(-0.5px);
+}
+
+.btn {
+  width: 100%;
+  padding: 12px;
+  background: #5fa8dc;
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 4px;
+  margin-top: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn:hover {
+  background: #4a96ca;
+}
+
+.btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.btn:disabled:hover {
+  background: #9ca3af; 
+}
+
+
+/* ----------- SUCCESS & ERROR MESSAGES ----------- */
+.form-msg {
+  padding: 10px 14px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+.form-error {
+  background: #ffe6e6;
+  color: #d9534f;
+  border: 1px solid #f4b4b4;
+}
+
+.form-success {
+  background: #e8ffe8;
+  color: #28a745;
+  border: 1px solid #b2e8b2;
+}
+
+.autocomplete-input {
+  margin: 0;
+  margin-top: 8px;
+}
+
+.autocomplete-wrapper {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.autocomplete-list {
+  border: 1px solid #ddd;
+  height: 230px;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.autocomplete-item {
+  padding: 6px;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+}

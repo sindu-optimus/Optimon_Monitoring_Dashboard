@@ -1,0 +1,30 @@
+.settings-page {
+  padding: 80px 24px 24px; /* below fixed header */
+  background: #f8fafc;
+  min-height: 100vh;
+}
+
+.settings-page h2 {
+  font-size: 22px;
+  margin-bottom: 16px;
+  color: #1f2937;
+}
+
+.settings-head {
+  margin-bottom: 20px;
+}
+
+.settings-page-card {
+  /* max-width: 480px; */
+  background: white;
+  padding: 20px;
+  margin: 20px 100px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+
+@media (max-width: 480px) {
+  .settings-page-card {
+    margin: 0 20px;
+  }  
+}

@@ -1,0 +1,75 @@
+.container {
+  width: 600px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  font-family: Arial, sans-serif;
+}
+
+/* Header */
+.header {
+  margin-bottom: 20px;
+}
+
+.title {
+  margin: 0;
+  font-size: 22px;
+  /* color: #1e293b; */
+}
+
+/* Card */
+.card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.card-label {
+  font-size: 16px;
+  color: #475569;
+}
+
+.card-value {
+  font-size: 28px;
+  font-weight: bold;
+  color: #0f172a;
+}
+
+/* Table */
+.table-container {
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: #f1f5f9;
+  font-weight: 600;
+  color: #334155;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.row:hover {
+  background: #f8fafc;
+}
+
+.trust-name {
+  color: #2563eb;
+  font-weight: 500;
+}

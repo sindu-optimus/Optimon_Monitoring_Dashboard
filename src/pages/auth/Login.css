@@ -1,0 +1,166 @@
+.videoWrapper {
+  position: relative;
+  overflow: hidden;
+}
+
+.bgVideo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  filter: brightness(0.85) saturate(1.1);
+}
+
+.videoOverlays {
+  position: absolute;
+  inset: 0;
+  background: rgb(165 218 251 / 85%);
+  z-index: 1;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+
+.login-card {
+  max-width: 1100px;
+  width: 90%;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+  position: relative;
+  z-index: 3;
+}
+
+.login-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 60px 60px 40px;
+}
+
+.login-illustration {
+  width: 50%;
+}
+
+.login-illustration img {
+  width: 100%;
+  height: auto;
+}
+
+.login-form {
+  width: 50%;
+}
+
+.login-form h2 {
+  font-size: 20px;
+  color: #444;
+}
+
+.login-form h1 {
+  font-size: 32px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.login-input {
+  width: 100%;
+  padding: 12px;
+  margin: 10px 0;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+.login-password {
+  position: relative;
+}
+
+.login-password i {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #666;
+}
+
+.forgot-password {
+  display: block;
+  text-align: right;
+  font-size: 14px;
+  /* margin: 10px 0 20px; */
+  color: #60a3d9;
+  text-decoration: none;
+}
+
+.login-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  background: #60a3d9;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.login-btn:hover {
+  background-color: #5995c6;
+}
+
+@media (max-width: 768px) {
+  .login-logo {
+    height: 50px;
+  }
+
+  .nav-link {
+    font-size: 14px;
+  }
+
+  .login-form h2 {
+    font-size: 16px;
+  }
+
+  .login-form h1 {
+    font-size: 26px;
+    margin-bottom: 24px;
+  }
+
+  .login-input {
+    padding: 8px;
+    margin: 8px 0;
+  }
+}
+
+
+@media (max-width: 480px) {
+  .login-card {
+    width: 90%;
+  }
+
+  .login-content {
+    flex-direction: column;
+    padding: 30px 20px;
+  }
+
+  /* REMOVE illustration on mobile */
+  .login-illustration {
+    display: none;
+  }
+
+  .login-form {
+    width: 100%;
+  }
+
+  .login-form h1 {
+    font-size: 26px;
+  }
+}
+

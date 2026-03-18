@@ -1,0 +1,23 @@
+/* GraphStyles.css */
+.graph-container {
+    width: 90%;
+    margin: 20px auto;
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  
+  
+  .recharts-cartesian-grid line {
+    stroke: #e0e0e0;
+  }
+  
+  .recharts-tooltip {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid #ccc !important;
+    border-radius: 5px !important;
+    padding: 10px !important;
+  }
+  

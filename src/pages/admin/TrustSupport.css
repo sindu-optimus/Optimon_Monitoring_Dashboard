@@ -1,0 +1,35 @@
+.trust-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.add-trust-btn {
+  padding: 10px 20px;
+  background-color: #60a3d9;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  margin-top: 20px;
+}
+
+.add-trust-btn:hover {
+  background-color: #5995c6;
+}
+
+.trust-number {
+  font-weight: 600;
+}
+
+.trust-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.trust-info p {
+  margin: 0;
+  margin-bottom: 10px;
+  text-align: left;
+}

@@ -1,0 +1,280 @@
+/* .serverWrapper {
+  height: 100%;
+} */
+
+.ellipsis {
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  display: inline-block;
+}
+
+.queue-tooltip-box {
+  position: fixed;
+  transform: translateX(-20%);
+  background: #333;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 999999;
+  pointer-events: none;
+}
+
+.server {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  width: 100%;
+  background-color: #fff;
+  border-radius: 8px;
+  transition: box-shadow 150ms ease, border 150ms ease;
+}
+
+.server:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  border: 1px solid #333;
+}
+
+.server-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+}
+
+.server-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  width: 100%;
+}
+
+.server-title {
+  font-size: 16px;
+  font-weight: 700;
+  max-width: 70%;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.server-last-updated {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/*  PULSE ICON   */
+.pulse-icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
+.pulse-icon svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  display: block;
+}
+
+.pulse-core {
+  fill: currentColor;
+}
+
+.pulse-ring {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  animation: pulse-ring 1.8s ease-out infinite;
+  transform-origin: center;
+}
+
+.pulse-ring.delay {
+  animation-delay: 0.9s;
+}
+
+.pulse-icon.ok {
+  color: #2ecc71;
+}
+
+.pulse-icon.danger {
+  color: #e74c3c;
+}
+
+@keyframes pulse-ring {
+  0% {
+    r: 4;
+    opacity: 0.7;
+  }
+  70% {
+    r: 8;
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.endpoint, .queue {
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.endpoint {
+  border-top: 1px solid #ddd;
+  /* margin-top: 20px; */
+}
+
+.queue-section,
+.endpoint-section {
+  position: relative;
+  height: 32vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.queue-content table,
+.endpoint-content table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.queue-content table thead th,
+.endpoint-content table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: inherit;  
+  padding: 5px 10px;
+  text-align: left;
+  font-size: 12px;
+  /* width: 60%; */
+}
+
+.queue-content table th:first-child,
+.queue-content table td:first-child,
+.endpoint-content table th:first-child,
+.endpoint-content table td:first-child {
+  width: 60%;
+}
+
+.queue-content table th:last-child,
+.queue-content table td:last-child,
+.endpoint-content table th:last-child,
+.endpoint-content table td:last-child {
+  width: 40%;
+}
+
+.queue-content table td,
+.endpoint-content table td {
+  padding: 8px 10px 2px 10px;
+  font-size: 12px;
+  font-weight: 555;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-content table tbody tr,
+.endpoint-content table tbody tr {
+  border-bottom: 1px solid #ddd;
+}
+
+.queue-content table tr:hover,
+.endpoint-content table tr:hover {
+  background-color: #f0f0f0;
+  transition: background-color 0.3s ease;
+}
+
+.trendIcon {
+  width: 12px;
+  height: 14px;
+  margin-left: 12px;
+}
+
+.cardEmptyState {
+  margin: 10px 0;
+  padding: 20px;
+  background: #f4fff7;
+  border: 1px solid #c8f0d4;
+  border-radius: 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.cardEmptyState i {
+  font-size: 32px;
+  color: #28a745;
+}
+
+.cardEmptyState p {
+  font-weight: 600;
+  margin: 0;
+  color: #2c3e50;
+}
+
+.cardEmptyState span {
+  font-size: 13px;
+  color: #666;
+}
+
+.noDataText {
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+  margin: 12px 0;
+}
+
+
+@media (max-width: 767px) {
+  .server {
+    margin-bottom: 16px;
+  }
+
+  .queue-section {
+    height: 200px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .endpoint-section {
+    height: 220px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .queue-content table,
+  .endpoint-content table {
+    table-layout: fixed;
+  }
+
+  .queue-content table thead th,
+  .endpoint-content table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    background-color: #fff;  
+  }
+
+  .queue-content table td,
+  .endpoint-content table td {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+}
+

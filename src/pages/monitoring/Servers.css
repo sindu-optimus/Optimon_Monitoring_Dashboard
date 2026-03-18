@@ -1,0 +1,208 @@
+.Servers {
+  position: relative;
+  height: 100vh;     
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;  
+  display: flex;
+  flex-direction: column;
+  padding: 54px 14px 34px 14px;
+}
+
+.videoWrapper {
+  position: relative;
+  overflow: hidden;
+}
+
+.bgVideo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  filter: brightness(0.85) saturate(1.1);
+}
+
+.videoOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgb(175 196 209 / 85%);
+  /* background: rgb(153 188 209 / 85%); */
+  z-index: 1;
+}
+
+.serversContent {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.cardsContainer {
+  flex: 1;                 
+  overflow: hidden;        
+  display: flex;
+}
+
+
+.cardsContainer::-webkit-scrollbar {
+  display: none;
+}
+
+.serverPage {
+  min-width: 100%;
+  display: grid;
+  gap: 16px;
+  padding: 8px;
+}
+
+.floatingNav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  opacity: 0.15;             
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.floatingNav i {
+  font-size: 22px;
+  color: #37474f;
+}
+
+.floatingNav.left {
+  left: 8px;
+}
+
+.floatingNav.right {
+  right: 8px;
+}
+
+.Servers:hover .floatingNav {
+  opacity: 0.85;
+}
+
+.floatingNav:hover {
+  transform: translateY(-50%) scale(1.08);
+}
+
+.floatingNav:disabled {
+  opacity: 0.08;
+  cursor: default;
+  transform: translateY(-50%);
+}
+
+.pagination {
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pageInfo {
+  font-size: 12px;
+  color: #333;
+  margin: 0 12px;
+}
+
+.iconBtn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid #cfd8dc;
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+} 
+
+.iconBtn i {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* @media (max-width: 767px) {
+  .Servers {
+    padding: 34px 18px;
+    margin-top: 30px;
+  }
+
+  .cardsContainer {
+    display: block;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scroll-behavior: auto;
+  }
+
+  .serverPage {
+  height: 100%;
+  display: grid;
+  gap: 12px;
+  padding: 8px;
+}
+
+
+  .floatingNav {
+    display: none;
+  }
+
+  .pagination {
+    display: none;
+  }
+} */
+
+@media (max-width: 767px) {
+  .Servers {
+    padding: 34px 18px;
+    margin-top: 30px;
+  }
+
+  .cardsContainer {
+    display: block;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .serverPage {
+    height: 100%;
+    display: grid;
+    gap: 12px;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 470px) {
+
+  .Servers {
+    height: auto;       
+    min-height: 100vh;    
+    overflow: visible;    
+    padding: 24px 14px;
+  }
+
+  .cardsContainer {
+    display: block;
+    overflow-y: visible;
+  }
+
+  .serverPage {
+    grid-template-columns: 1fr !important;
+    gap: 16px;
+  }
+}

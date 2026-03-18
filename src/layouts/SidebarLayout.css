@@ -1,0 +1,16 @@
+.page-content {
+  flex: 1;
+  background: #f8fafc;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+/* .content {
+    padding: 100px 30px;
+    width: 100%;
+    box-sizing: border-box;
+} */
+
+
