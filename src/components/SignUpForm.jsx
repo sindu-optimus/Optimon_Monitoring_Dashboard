@@ -27,6 +27,7 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
     role: initialRole,
     trusts: initial.trusts ?? [],
     email: initial.email ?? "",
+    username: initial.username ?? initial.email ?? "",
     phone: String(initial.phone ?? initial.mobile ?? ""),
     password: "",
   });
@@ -114,6 +115,7 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
     "trusts",
     "email",
     "phone",
+    "username",
     "password",
   ];
 
@@ -168,7 +170,15 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => {
+      const nextForm = { ...prev, [name]: value };
+
+      if (name === "email") {
+        nextForm.username = value;
+      }
+
+      return nextForm;
+    });
 
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: null }));
@@ -238,8 +248,10 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
       mobile: Number(form.phone),
+      password: form.password,
       roleId,
       trustIds,
+      username: form.email.trim(),
     };
 
     try {
@@ -410,6 +422,14 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
           onChange={handleChange}
         />
         {errors.phone && <p className="input-error">{errors.phone}</p>}
+
+        <label className="form-label">Username*</label>
+        <input
+          name="username"
+          className={`form-input ${errors.username ? "input-invalid" : ""}`}
+          value={form.username}
+          readOnly
+        />
 
         {/* Password */}
         <label className="form-label">

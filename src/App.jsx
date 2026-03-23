@@ -36,10 +36,30 @@ import "./App.css";
 
 export default function App() {
   /* ===================== STATE ===================== */
-  const [refreshTime, setRefreshTime] = useState(60);
-  const [gridCount, setGridCount] = useState(3);
-  const [queueWarningLimit, setQueueWarningLimit] = useState(100);
-  const [serviceDelayLimit, setServiceDelayLimit] = useState(100);
+  const DEFAULT_REFRESH_TIME = 60;
+  const DEFAULT_GRID_COUNT = 3;
+  const DEFAULT_QUEUE_WARNING_LIMIT = 100;
+  const DEFAULT_SERVICE_DELAY_LIMIT = 100;
+
+  const getStoredNumber = (key, fallback) => {
+    const storedValue = Number(localStorage.getItem(key));
+    return Number.isFinite(storedValue) && storedValue > 0
+      ? storedValue
+      : fallback;
+  };
+
+  const [refreshTime, setRefreshTime] = useState(() =>
+    getStoredNumber("refreshTime", DEFAULT_REFRESH_TIME)
+  );
+  const [gridCount, setGridCount] = useState(() =>
+    getStoredNumber("gridCount", DEFAULT_GRID_COUNT)
+  );
+  const [queueWarningLimit, setQueueWarningLimit] = useState(() =>
+    getStoredNumber("queueWarningLimit", DEFAULT_QUEUE_WARNING_LIMIT)
+  );
+  const [serviceDelayLimit, setServiceDelayLimit] = useState(() =>
+    getStoredNumber("serviceDelayLimit", DEFAULT_SERVICE_DELAY_LIMIT)
+  );
   const [selectedTrustIds, setSelectedTrustIds] = useState(["ALL"]);
   const [isLoggedIn, setIsLoggedIn] = useState(
     localStorage.getItem("isLoggedIn") === "true"
@@ -68,6 +88,8 @@ export default function App() {
     try {
       const res = await fetch(
         `http://18.168.87.76:8084/getMetricDetails/?trustId=${trustId}`
+        // `http://18.170.60.107:8085/getMetricDetails/?trustId=${trustId}`
+
       );
       if (!res.ok) throw new Error();
 
@@ -174,6 +196,20 @@ export default function App() {
     navigate("/action");
   };
 
+  const handleLogout = () => {
+    localStorage.clear();
+    setIsLoggedIn(false);
+    setUsername("");
+    setRefreshTime(DEFAULT_REFRESH_TIME);
+    setGridCount(DEFAULT_GRID_COUNT);
+    setQueueWarningLimit(DEFAULT_QUEUE_WARNING_LIMIT);
+    setServiceDelayLimit(DEFAULT_SERVICE_DELAY_LIMIT);
+    setSelectedTrustIds(["ALL"]);
+    setAllTrustData([]);
+    setTrustIds([]);
+    navigate("/login");
+  };
+
   const showHeaderAndFooter = !["/login", "/about", "/contact"].includes(
     location.pathname
   );
@@ -196,6 +232,7 @@ export default function App() {
           onTrustChange={setSelectedTrustIds}
           trustData={allTrustData}
           onRefresh={() => fetchTrustsProgressively(trustIds)}
+          onLogout={handleLogout}
         />
       )}
 
@@ -250,6 +287,10 @@ export default function App() {
           <Route index element={<Navigate to="profile" replace />} />
           <Route path="profile" element={<Profile username={username} />} />
           <Route path="add-trusts" element={<AddTrust />} />
+          <Route path="view-actions" element={<ViewActions />} />
+          <Route path="add-action" element={<AddActions username={username} />} />
+          <Route path="send-email" element={<SendMail />} />
+          <Route path="faqs" element={<FAQ />} />
           <Route path="add-users" element={<AddUser />} />
           <Route path="summary-interfaces" element={<SummaryInterfaces />} />
           <Route

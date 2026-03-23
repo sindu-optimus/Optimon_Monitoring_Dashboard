@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { NavLink, Link } from "react-router-dom";
-import optimon_logo from "../assets/optimon_logo.png";
+import optimonLogo from "../assets/optimon_logo.png";
 import "./LoginNavbar.css";
 
 const LoginNavbar = () => {
@@ -10,7 +10,7 @@ const LoginNavbar = () => {
     <nav className="login-navbar">
       {/* LEFT */}
       <img
-        src={optimon_logo}
+        src={optimonLogo}
         alt="Optimon Logo"
         className="login-logo"
       />

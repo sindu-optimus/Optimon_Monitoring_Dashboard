@@ -2,14 +2,13 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import SettingsPanel from "./SettingsPanel";
-import OptimonLogo from "../assets/Optimon_Logo.png";
+import optimonLogo from "../assets/Optimon_logo.png";
 import logo from "../assets/logo.png";
 import refreshIcon from "../assets/refresh.png";
 import "./Header.css";
 
 export default function Header({
   refreshTime,
-  defaultRefreshTime,
   onRefreshTimeChange,
   gridCount,
   onGridCountChange,
@@ -22,6 +21,7 @@ export default function Header({
   onTrustChange,
   trustData,
   onRefresh,
+  onLogout,
 }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -151,15 +151,8 @@ export default function Header({
   };
 
   const handleLogout = () => {
-    localStorage.clear();
-
-    onRefreshTimeChange(defaultRefreshTime);
-    onGridCountChange(3);
-    onQueueWarningLimitChange(100);
-    onServiceDelayLimitChange(100);
-
     closeAllDropdowns();
-    navigate("/login");
+    onLogout?.();
   };
 
  const handleTrustChange = (e) => {
@@ -208,7 +201,7 @@ export default function Header({
   return (
     <div className="Header">
       <img
-        src={OptimonLogo}
+        src={optimonLogo}
         alt="Optimon Logo"
         className="optimon-logo"
         onClick={goHome}
