@@ -68,7 +68,7 @@ export default function AddUser() {
 
       <div className="users-actions">
         <button
-          className="add-user-btn"
+          className="add-btn"
           onClick={() => {
             setEditingUser(null);
             setShowForm(true);
@@ -101,6 +101,8 @@ export default function AddUser() {
               <p><strong>Role:</strong> {user.roleId}</p>
 
               <p><strong>Email:</strong> {user.email}</p>
+
+              <p><strong>Username:</strong> {user.username || "-"}</p>
 
               <p><strong>Phone:</strong> {user.mobile}</p>
 

@@ -1,5 +1,5 @@
 // App.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Routes,
   Route,
@@ -20,17 +20,16 @@ import ServerDetails from "./pages/monitoring/ServerDetails";
 import Dashboard from "./pages/monitoring/Dashboard";
 import AddTrust from "./pages/admin/AddTrust";
 import AddUser from "./pages/admin/AddUser";
-import TrustSupport from "./pages/admin/TrustSupport";
 import Profile from "./pages/admin/Profile";
 import SummaryInterfaces from "./pages/admin/SummaryInterfaces";
 import SettingsPage from "./pages/admin/SettingsPage";
 
 import MessageBank from "./pages/shared/MessageBank";
-import ViewActions from "./pages/shared/ViewActions";
-import AddActions from "./pages/shared/AddActions";
+import SupportActions from "./pages/shared/SupportActions";
 import SendMail from "./pages/shared/SendMail";
 import FAQ from "./pages/shared/FAQ";
 import MessageTrend from "./pages/shared/MessageTrend";
+import { getTrustMeta } from "./utils/trustData";
 
 import "./App.css";
 
@@ -41,24 +40,13 @@ export default function App() {
   const DEFAULT_QUEUE_WARNING_LIMIT = 100;
   const DEFAULT_SERVICE_DELAY_LIMIT = 100;
 
-  const getStoredNumber = (key, fallback) => {
-    const storedValue = Number(localStorage.getItem(key));
-    return Number.isFinite(storedValue) && storedValue > 0
-      ? storedValue
-      : fallback;
-  };
-
-  const [refreshTime, setRefreshTime] = useState(() =>
-    getStoredNumber("refreshTime", DEFAULT_REFRESH_TIME)
+  const [refreshTime, setRefreshTime] = useState(DEFAULT_REFRESH_TIME);
+  const [gridCount, setGridCount] = useState(DEFAULT_GRID_COUNT);
+  const [queueWarningLimit, setQueueWarningLimit] = useState(
+    DEFAULT_QUEUE_WARNING_LIMIT
   );
-  const [gridCount, setGridCount] = useState(() =>
-    getStoredNumber("gridCount", DEFAULT_GRID_COUNT)
-  );
-  const [queueWarningLimit, setQueueWarningLimit] = useState(() =>
-    getStoredNumber("queueWarningLimit", DEFAULT_QUEUE_WARNING_LIMIT)
-  );
-  const [serviceDelayLimit, setServiceDelayLimit] = useState(() =>
-    getStoredNumber("serviceDelayLimit", DEFAULT_SERVICE_DELAY_LIMIT)
+  const [serviceDelayLimit, setServiceDelayLimit] = useState(
+    DEFAULT_SERVICE_DELAY_LIMIT
   );
   const [selectedTrustIds, setSelectedTrustIds] = useState(["ALL"]);
   const [isLoggedIn, setIsLoggedIn] = useState(
@@ -67,19 +55,63 @@ export default function App() {
   const [username, setUsername] = useState(
     localStorage.getItem("username") || ""
   );
+  const [loggedInUser, setLoggedInUser] = useState(() => {
+    const storedUser = localStorage.getItem("loggedInUser");
+    if (!storedUser) return null;
+
+    try {
+      return JSON.parse(storedUser);
+    } catch {
+      return null;
+    }
+  });
+  const [sessionPassword, setSessionPassword] = useState(
+    () => sessionStorage.getItem("sessionPassword") || ""
+  );
   const [allTrustData, setAllTrustData] = useState([]);
   const [trustIds, setTrustIds] = useState([]);
+  const isAdminUser =
+    Number(loggedInUser?.roleId) === 1 ||
+    String(loggedInUser?.role || "").toLowerCase() === "admin";
+
+  const allowedTrustIds = useMemo(() => {
+    const userTrustIds =
+      loggedInUser?.trusts
+        ?.map((trust) => trust?.id)
+        .filter((id) => Number.isFinite(Number(id)))
+        .map(Number)
+        .sort((a, b) => a - b) || [];
+
+    if (userTrustIds.length > 0) {
+      return userTrustIds;
+    }
+
+    return Array.from({ length: gridCount }, (_, i) => i + 1);
+  }, [loggedInUser, gridCount]);
+
+  const maxGridCount = useMemo(() => {
+    if (allowedTrustIds.length > 0) {
+      return allowedTrustIds.length;
+    }
+
+    return DEFAULT_GRID_COUNT;
+  }, [allowedTrustIds]);
 
   const navigate = useNavigate();
   const location = useLocation();
 
+  useEffect(() => {
+    localStorage.removeItem("refreshTime");
+    localStorage.removeItem("gridCount");
+    localStorage.removeItem("queueWarningLimit");
+    localStorage.removeItem("serviceDelayLimit");
+  }, []);
+
   /* ===================== HELPERS ===================== */
   function sortTrustDataById(dataList) {
     return [...dataList].sort((a, b) => {
-      const trustA =
-        a?.inboundDetails?.[0]?.trustId ?? Number.MAX_SAFE_INTEGER;
-      const trustB =
-        b?.inboundDetails?.[0]?.trustId ?? Number.MAX_SAFE_INTEGER;
+      const trustA = getTrustMeta(a).trustId ?? Number.MAX_SAFE_INTEGER;
+      const trustB = getTrustMeta(b).trustId ?? Number.MAX_SAFE_INTEGER;
       return trustA - trustB;
     });
   }
@@ -107,11 +139,11 @@ export default function App() {
       if (!data) return;
 
       setAllTrustData((prev) => {
-        const trustId = data?.inboundDetails?.[0]?.trustId;
+        const trustId = getTrustMeta(data).trustId;
+        if (trustId == null) return prev;
 
         const exists = prev.some(
-          (item) =>
-            item?.inboundDetails?.[0]?.trustId === trustId
+          (item) => getTrustMeta(item).trustId === trustId
         );
 
         if (exists && append) return prev;
@@ -123,8 +155,7 @@ export default function App() {
         } else {
           updated = [
             ...prev.filter(
-              (item) =>
-                item?.inboundDetails?.[0]?.trustId !== trustId
+              (item) => getTrustMeta(item).trustId !== trustId
             ),
             data,
           ];
@@ -139,40 +170,81 @@ export default function App() {
   useEffect(() => {
     if (!isLoggedIn) return;
 
-    const ids = Array.from({ length: gridCount }, (_, i) => i + 1);
+    const ids = allowedTrustIds.slice(0, Math.max(1, Number(gridCount) || 1));
     setTrustIds(ids);
-    setAllTrustData([]); // clear old
+    setAllTrustData([]);
 
     fetchTrustsProgressively(ids);
-  }, [isLoggedIn]);
+  }, [isLoggedIn, allowedTrustIds, gridCount]);
 
   /* ===================== GRID CHANGE ===================== */
   useEffect(() => {
     if (!isLoggedIn) return;
 
+    const nextGridCount = Math.min(
+      Math.max(1, Number(gridCount) || DEFAULT_GRID_COUNT),
+      maxGridCount
+    );
+
+    if (nextGridCount !== Number(gridCount)) {
+      setGridCount(nextGridCount);
+    }
+  }, [gridCount, isLoggedIn, maxGridCount]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
     setTrustIds((prevIds) => {
-      // Decrease grid
-      if (gridCount <= prevIds.length) {
-        const updatedIds = prevIds.slice(0, gridCount);
+      if (prevIds.length === 0) {
+        return prevIds;
+      }
+
+      const safeGridCount = Math.min(
+        Math.max(1, Number(gridCount) || 1),
+        allowedTrustIds.length
+      );
+
+      if (safeGridCount <= prevIds.length) {
+        const updatedIds = allowedTrustIds.slice(0, safeGridCount);
 
         setAllTrustData((prev) =>
-          sortTrustDataById(prev).slice(0, gridCount)
+          sortTrustDataById(prev).filter((item) =>
+            updatedIds.includes(getTrustMeta(item).trustId)
+          )
         );
 
         return updatedIds;
       }
 
-      // Increase grid
-      const newIds = Array.from(
-        { length: gridCount - prevIds.length },
-        (_, i) => prevIds.length + i + 1
-      );
+      const newIds = allowedTrustIds
+        .filter((id) => !prevIds.includes(id))
+        .slice(0, safeGridCount - prevIds.length);
+
+      if (newIds.length === 0) {
+        return prevIds;
+      }
 
       fetchTrustsProgressively(newIds, true);
 
       return [...prevIds, ...newIds];
     });
-  }, [gridCount]);
+  }, [gridCount, isLoggedIn, allowedTrustIds]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    setSelectedTrustIds((prev) => {
+      if (prev.includes("ALL")) {
+        return ["ALL"];
+      }
+
+      const filteredIds = prev.filter((id) =>
+        allowedTrustIds.includes(Number(id))
+      );
+
+      return filteredIds.length > 0 ? filteredIds : ["ALL"];
+    });
+  }, [isLoggedIn, allowedTrustIds]);
 
   /* ===================== AUTO REFRESH ===================== */
   useEffect(() => {
@@ -188,11 +260,17 @@ export default function App() {
   }, [isLoggedIn, refreshTime, trustIds]);
 
   /* ===================== LOGIN ===================== */
-  const handleLogin = (uname) => {
+  const handleLogin = (userData, password = "") => {
+    const uname = userData?.username || userData?.email || "";
+
     setIsLoggedIn(true);
     setUsername(uname);
+    setLoggedInUser(userData || null);
+    setSessionPassword(password);
     localStorage.setItem("isLoggedIn", "true");
     localStorage.setItem("username", uname);
+    localStorage.setItem("loggedInUser", JSON.stringify(userData || null));
+    sessionStorage.setItem("sessionPassword", password);
     navigate("/action");
   };
 
@@ -200,6 +278,8 @@ export default function App() {
     localStorage.clear();
     setIsLoggedIn(false);
     setUsername("");
+    setLoggedInUser(null);
+    setSessionPassword("");
     setRefreshTime(DEFAULT_REFRESH_TIME);
     setGridCount(DEFAULT_GRID_COUNT);
     setQueueWarningLimit(DEFAULT_QUEUE_WARNING_LIMIT);
@@ -207,6 +287,7 @@ export default function App() {
     setSelectedTrustIds(["ALL"]);
     setAllTrustData([]);
     setTrustIds([]);
+    sessionStorage.removeItem("sessionPassword");
     navigate("/login");
   };
 
@@ -223,7 +304,10 @@ export default function App() {
           onRefreshTimeChange={setRefreshTime}
           gridCount={gridCount}
           onGridCountChange={setGridCount}
+          maxGridCount={maxGridCount}
+          isAdminUser={isAdminUser}
           username={username}
+          userProfile={loggedInUser}
           queueWarningLimit={queueWarningLimit}
           onQueueWarningLimitChange={setQueueWarningLimit}
           serviceDelayLimit={serviceDelayLimit}
@@ -267,36 +351,76 @@ export default function App() {
           <Route path="trusts" element={<AddTrust />} />
           <Route path="message-bank" element={<MessageBank />} />
           <Route path="message-trend" element={<MessageTrend />} />
-          <Route path="view-actions" element={<ViewActions />} />
-          <Route path="add-action" element={<AddActions username={username} />} />
+          <Route
+            path="support-actions"
+            element={
+              <SupportActions
+                isAdminUser={isAdminUser}
+                userProfile={loggedInUser}
+              />
+            }
+          />
           <Route path="send-email" element={<SendMail />} />
           <Route path="faqs" element={<FAQ />} />
-          <Route path="profile" element={<Profile username={username} />} />
+          <Route
+            path="profile"
+            element={
+              <Profile
+                username={username}
+                userProfile={loggedInUser}
+              />
+            }
+          />
         </Route>
 
         <Route
           element={isLoggedIn ? <ProfileLayout /> : <Navigate to="/login" />}
         >
-          <Route path="/profile" element={<Profile username={username} />} />
+          <Route
+            path="/profile"
+            element={
+              <Profile
+                username={username}
+                userProfile={loggedInUser}
+              />
+            }
+          />
         </Route>
 
         <Route
           path="/admin"
-          element={isLoggedIn ? <AdminLayout /> : <Navigate to="/login" />}
+          element={
+            isLoggedIn ? (
+              isAdminUser ? <AdminLayout /> : <Navigate to="/action" replace />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
         >
           <Route index element={<Navigate to="profile" replace />} />
-          <Route path="profile" element={<Profile username={username} />} />
+          <Route
+            path="profile"
+            element={
+              <Profile
+                username={username}
+                userProfile={loggedInUser}
+              />
+            }
+          />
           <Route path="add-trusts" element={<AddTrust />} />
-          <Route path="view-actions" element={<ViewActions />} />
-          <Route path="add-action" element={<AddActions username={username} />} />
+          <Route
+            path="support-actions"
+            element={
+              <SupportActions
+                isAdminUser={isAdminUser}
+                userProfile={loggedInUser}
+              />
+            }
+          />
           <Route path="send-email" element={<SendMail />} />
           <Route path="faqs" element={<FAQ />} />
           <Route path="add-users" element={<AddUser />} />
           <Route path="summary-interfaces" element={<SummaryInterfaces />} />
-          <Route
-            path="trust-support"
-            element={<TrustSupport trustData={allTrustData} />}
-          />
           <Route
             path="settings"
             element={
@@ -305,6 +429,7 @@ export default function App() {
                 onRefreshTimeChange={setRefreshTime}
                 gridCount={gridCount}
                 onGridCountChange={setGridCount}
+                maxGridCount={maxGridCount}
                 selectedTrustIds={selectedTrustIds}
                 onTrustChange={setSelectedTrustIds}
                 queueWarningLimit={queueWarningLimit}

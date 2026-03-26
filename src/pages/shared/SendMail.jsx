@@ -11,6 +11,8 @@ import {
 
 import "./SendMail.css";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const SendMail = () => {
   const location = useLocation();
   const { interfaceId } = location.state || {};
@@ -22,6 +24,7 @@ const SendMail = () => {
   const [to, setTo] = useState([]);
   const [cc, setCc] = useState([]);
   const [subject, setSubject] = useState("");
+  const [bodyValue, setBodyValue] = useState("");
 
   const [emailList, setEmailList] = useState([]);
   const [filteredEmails, setFilteredEmails] = useState([]);
@@ -62,25 +65,98 @@ const SendMail = () => {
   }, [to, cc, emailList]);
 
   /* ================= VALIDATION ================= */
-  useEffect(() => {
-    const bodyText = editorRef.current?.innerText?.trim() || "";
-    const newErrors = {};
+  const getEditorText = () => editorRef.current?.innerText?.trim() || "";
 
-    if (to.length === 0 && !toInputValue) {
-      newErrors.to = "To field is required";
+  const parseEmailInput = (value) =>
+    value
+      .split(/[;,]/)
+      .map((email) => email.trim())
+      .filter(Boolean);
+
+  const hasOnlyValidEmails = (emails = []) =>
+    emails.every((email) => EMAIL_REGEX.test(email));
+
+  const getDraftToEmails = () => [...to, ...parseEmailInput(toInputValue)];
+
+  const getDraftCcEmails = () => [...cc, ...parseEmailInput(ccInputValue)];
+
+  const validateUpTo = (field) => {
+    const newErrors = {};
+    const draftTo = getDraftToEmails();
+    const draftCc = getDraftCcEmails();
+
+    if (draftTo.length === 0) {
+      newErrors.to = "At least one recipient is required";
+    } else if (!hasOnlyValidEmails(draftTo)) {
+      newErrors.to = "Enter a valid email address in To";
+    }
+    if (field === "to") {
+      setErrors((prev) => ({ ...prev, ...newErrors }));
+      return;
+    }
+
+    if (draftCc.length > 0 && !hasOnlyValidEmails(draftCc)) {
+      newErrors.cc = "Enter a valid email address in CC";
+    }
+    if (field === "cc") {
+      setErrors((prev) => ({ ...prev, ...newErrors }));
+      return;
+    }
+
+    if (!subject.trim()) {
+      newErrors.subject = "Subject is required";
+    }
+    if (field === "subject") {
+      setErrors((prev) => ({ ...prev, ...newErrors }));
+      return;
+    }
+
+    if (!getEditorText()) {
+      newErrors.body = "Email body is required";
+    }
+
+    setErrors((prev) => ({ ...prev, ...newErrors }));
+  };
+
+  const validateAll = () => {
+    const newErrors = {};
+    const draftTo = getDraftToEmails();
+    const draftCc = getDraftCcEmails();
+
+    if (draftTo.length === 0) {
+      newErrors.to = "At least one recipient is required";
+    } else if (!hasOnlyValidEmails(draftTo)) {
+      newErrors.to = "Enter a valid email address in To";
+    }
+
+    if (draftCc.length > 0 && !hasOnlyValidEmails(draftCc)) {
+      newErrors.cc = "Enter a valid email address in CC";
     }
 
     if (!subject.trim()) {
       newErrors.subject = "Subject is required";
     }
 
-    if (!bodyText) {
+    if (!getEditorText()) {
       newErrors.body = "Email body is required";
     }
 
     setErrors(newErrors);
-    setIsFormValid(Object.keys(newErrors).length === 0);
-  }, [to, toInputValue, subject]);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  useEffect(() => {
+    const draftTo = getDraftToEmails();
+    const draftCc = getDraftCcEmails();
+
+    setIsFormValid(
+      draftTo.length > 0 &&
+        hasOnlyValidEmails(draftTo) &&
+        hasOnlyValidEmails(draftCc) &&
+        subject.trim() &&
+        bodyValue.trim()
+    );
+  }, [to, cc, toInputValue, ccInputValue, subject, bodyValue]);
 
   /* ================= FORMAT ================= */
   const handleFormat = (cmd, value = null) => {
@@ -91,10 +167,10 @@ const SendMail = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!isFormValid) return;
+    if (!validateAll()) return;
 
-    const finalTo = [...to, ...(toInputValue ? [toInputValue] : [])];
-    const finalCc = [...cc, ...(ccInputValue ? [ccInputValue] : [])];
+    const finalTo = getDraftToEmails();
+    const finalCc = getDraftCcEmails();
     const body = editorRef.current?.innerHTML || "";
 
     const payload = {
@@ -122,8 +198,10 @@ const SendMail = () => {
       setTo([]);
       setCc([]);
       setSubject("");
+      setBodyValue("");
       setToInputValue("");
       setCcInputValue("");
+      setErrors({});
       editorRef.current.innerHTML = "";
     } catch {
       setResponseMessage("Failed to send email.");
@@ -158,7 +236,7 @@ const SendMail = () => {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="form">
+      <form onSubmit={handleSubmit} className="form" noValidate>
         {/* TO */}
         <div className="form-group">
           <label>To:</label>
@@ -176,8 +254,15 @@ const SendMail = () => {
             ))}
             <input
               value={toInputValue}
+              className={errors.to ? "input-invalid" : ""}
               onFocus={() => setShowToDropdown(true)}
-              onChange={(e) => setToInputValue(e.target.value)}
+              onChange={(e) => {
+                setToInputValue(e.target.value);
+                if (errors.to) {
+                  setErrors((prev) => ({ ...prev, to: null }));
+                }
+              }}
+              onBlur={() => validateUpTo("to")}
               placeholder="Enter email"
             />
             {showToDropdown && (
@@ -190,6 +275,9 @@ const SendMail = () => {
                       setTo([...to, email]);
                       setToInputValue("");
                       setShowToDropdown(false);
+                      if (errors.to) {
+                        setErrors((prev) => ({ ...prev, to: null }));
+                      }
                     }}
                   >
                     {email}
@@ -218,11 +306,19 @@ const SendMail = () => {
             ))}
             <input
               value={ccInputValue}
+              className={errors.cc ? "input-invalid" : ""}
               onFocus={() => setShowCcDropdown(true)}
-              onChange={(e) => setCcInputValue(e.target.value)}
+              onChange={(e) => {
+                setCcInputValue(e.target.value);
+                if (errors.cc) {
+                  setErrors((prev) => ({ ...prev, cc: null }));
+                }
+              }}
+              onBlur={() => validateUpTo("cc")}
               placeholder="Enter email"
             />
           </div>
+          {errors.cc && <span className="input-error">{errors.cc}</span>}
         </div>
 
         {/* SUBJECT */}
@@ -231,7 +327,15 @@ const SendMail = () => {
           <input
             type="text"
             value={subject}
-            onChange={(e) => setSubject(e.target.value)}
+            className={errors.subject ? "input-invalid" : ""}
+            onFocus={() => validateUpTo("cc")}
+            onChange={(e) => {
+              setSubject(e.target.value);
+              if (errors.subject) {
+                setErrors((prev) => ({ ...prev, subject: null }));
+              }
+            }}
+            onBlur={() => validateUpTo("subject")}
             placeholder="Enter subject"
           />
           {errors.subject && (
@@ -265,7 +369,19 @@ const SendMail = () => {
         </div>
 
         {/* EDITOR */}
-        <div ref={editorRef} contentEditable className="editor" />
+        <div
+          ref={editorRef}
+          contentEditable
+          className={`editor ${errors.body ? "input-invalid" : ""}`}
+          onFocus={() => validateUpTo("subject")}
+          onInput={() => {
+            setBodyValue(getEditorText());
+            if (errors.body) {
+              setErrors((prev) => ({ ...prev, body: null }));
+            }
+          }}
+          onBlur={validateAll}
+        />
         {errors.body && <span className="input-error">{errors.body}</span>}
 
         <button type="submit" className="btn" disabled={!isFormValid}>

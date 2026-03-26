@@ -6,6 +6,7 @@ export default function SettingsPanel({
   onRefreshTimeChange,
   gridCount,
   onGridCountChange,
+  maxGridCount = 3,
   queueWarningLimit,
   onQueueWarningLimitChange,
   serviceDelayLimit,
@@ -38,6 +39,8 @@ export default function SettingsPanel({
     else if (inputTime > 180)
       newErrors.inputTime = "Refresh time cannot exceed 180 seconds";
     if (!inputGridCount || inputGridCount < 1) newErrors.inputGridCount = "Grid count must be at least 1";
+    else if (inputGridCount > maxGridCount)
+      newErrors.inputGridCount = `Grid count cannot exceed ${maxGridCount}`;
     if (!inputQueueLimit || inputQueueLimit < 1) newErrors.inputQueueLimit = "Queue warning limit must be at least 1";
     if (!inputServiceDelay || inputServiceDelay < 1)
       newErrors.inputServiceDelay = "Service delay limit must be at least 1 minute";
@@ -46,13 +49,20 @@ export default function SettingsPanel({
     return Object.keys(newErrors).length === 0;
   };
 
+  const validateGridCount = (value) => {
+    if (!value || value < 1) {
+      return "Grid count must be at least 1";
+    }
+
+    if (value > maxGridCount) {
+      return `Grid count cannot exceed ${maxGridCount}`;
+    }
+
+    return "";
+  };
+
   const handleSave = () => {
     if (!validate()) return;
-
-    localStorage.setItem("refreshTime", inputTime);
-    localStorage.setItem("gridCount", inputGridCount);
-    localStorage.setItem("queueWarningLimit", inputQueueLimit);
-    localStorage.setItem("serviceDelayLimit", inputServiceDelay);
 
     onRefreshTimeChange(inputTime);
     onGridCountChange(inputGridCount);
@@ -84,13 +94,30 @@ export default function SettingsPanel({
       <input
         type="number"
         min="1"
+        max={maxGridCount}
         value={inputGridCount}
         disabled={!isAllTrustSelecteds}   
-        onChange={(e) =>
-          setInputGridCount(e.target.value === "" ? "" : +e.target.value)
-        }
+        className={errors.inputGridCount ? "input-invalid" : ""}
+        onChange={(e) => {
+          const nextValue = e.target.value === "" ? "" : +e.target.value;
+          setInputGridCount(nextValue);
+
+          setErrors((prev) => {
+            const nextErrors = { ...prev };
+            const gridError = validateGridCount(nextValue);
+
+            if (gridError) {
+              nextErrors.inputGridCount = gridError;
+            } else {
+              delete nextErrors.inputGridCount;
+            }
+
+            return nextErrors;
+          });
+        }}
         onBlur={handleBlur}
       />
+      {errors.inputGridCount && <p className="error">{errors.inputGridCount}</p>}
 
       {/* Optional helper text */}
       {!isAllTrustSelecteds && (

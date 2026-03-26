@@ -14,14 +14,11 @@ export default function Sidebar() {
 
   const menuItems = [
     { name: "Dashboard", path: "dashboard", icon: "ri-dashboard-line", activeIcon: "ri-dashboard-fill" },
-    { name: "Add Trust", path: "trusts", icon: "ri-shield-check-line", activeIcon: "ri-shield-check-fill" },
     { name: "Message Bank", path: "message-bank", icon: "ri-search-line", activeIcon: "ri-search-fill" },
     { name: "Message Trend", path: "message-trend", icon: "ri-file-chart-line", activeIcon: "ri-file-chart-fill" },
     { name: "View Actions", path: "view-actions", icon: "ri-history-line", activeIcon: "ri-history-fill" },
-    { name: "Add Action", path: "add-action", icon: "ri-add-line", activeIcon: "ri-add-fill" },
     { name: "Send Email", path: "send-email", icon: "ri-send-plane-line", activeIcon: "ri-send-plane-fill" },
     { name: "FAQs", path: "faqs", icon: "ri-question-line", activeIcon: "ri-question-fill" },
-    { name: "Profile", path: "profile", icon: "ri-user-line", activeIcon: "ri-user-fill" },
   ];
 
   const handleNavigate = (subPath) => {

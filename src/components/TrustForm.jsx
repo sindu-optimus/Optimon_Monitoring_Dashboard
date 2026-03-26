@@ -90,20 +90,22 @@ export default function TrustForm({ initial = {}, onSuccess, onCancel }) {
 
   return (
     <div className="content">
+      <h2 className="form-title">
+        {initial?.id ? "Edit Trust" : "Add Trust"}
+      </h2>
 
-      <div className="form-header">
-        <div className="back-btn">
-          <div className="icon-btn" onClick={onCancel}>
-            <i className="fa-solid fa-less-than"></i>
-          </div>
-          <button className="add-user-btn" onClick={onCancel}>
-              List of Trusts
-          </button>
+      <div className="trust-actions">
+         <div className="icon-btn" onClick={onCancel}>
+           <i className="fa-solid fa-less-than"></i>
         </div>
-
-        <h2 className="form-title">
-          {initial?.id ? "Edit Trust" : "Add Trust"}
-        </h2>
+        
+        <button
+          type="button"
+          className="trust-list-btn"
+          onClick={onCancel}
+        >
+          List of Trusts
+        </button>
       </div>
 
       {error && <div className="form-msg form-error">{error}</div>}

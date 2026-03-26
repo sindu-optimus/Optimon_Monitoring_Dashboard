@@ -120,8 +120,30 @@
 }
 
 .welcome {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  margin: 0;
+  line-height: 1.15;
+}
+
+.welcome-label {
+  white-space: nowrap;
+}
+
+.welcome-name {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 170px;
+  column-gap: 4px;
+}
+
+.welcome-last-line {
+  display: block;
+  flex-basis: 100%;
 }
 
 .fa-user {

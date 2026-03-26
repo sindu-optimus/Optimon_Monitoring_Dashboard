@@ -136,7 +136,10 @@ export default function Server({
     return val.includes("no pending");
   });
 
-  // const noQueues = queues.length === 0;
+  const hasBackendNoPendingServices = inbound.some((ep) => {
+    const delayValue = String(ep.timeDelay || "").toLowerCase();
+    return delayValue.includes("no pending services");
+  });
 
   const endpoints = useMemo(() => {
     return inbound
@@ -190,6 +193,7 @@ export default function Server({
         queues={queues}
         endpoints={endpoints}
         noQueues={hasBackendNoPending}
+        noPendingServices={hasBackendNoPendingServices}
         lastUpdated={lastUpdated}
         lastUpdatedText={lastUpdatedText}
       />

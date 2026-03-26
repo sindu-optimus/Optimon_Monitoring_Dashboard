@@ -12,7 +12,10 @@ export default function Header({
   onRefreshTimeChange,
   gridCount,
   onGridCountChange,
+  maxGridCount,
+  isAdminUser,
   username,
+  userProfile,
   queueWarningLimit,
   onQueueWarningLimitChange,
   serviceDelayLimit,
@@ -30,6 +33,13 @@ export default function Header({
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
   const userIconRef = useRef(null);
+  const firstName = userProfile?.firstName?.trim() || "";
+  const lastName = userProfile?.lastName?.trim() || "";
+  const hasFullName = Boolean(firstName || lastName);
+  const displayName = hasFullName
+    ? `${firstName} ${lastName}`.trim()
+    : username || "user";
+  const stackLastName = hasFullName && displayName.length > 18 && Boolean(lastName);
 
   const handlePageRefresh = async () => {
   if (isRefreshing) return;
@@ -81,24 +91,6 @@ export default function Header({
 
     return [...firstThree, ...lastOne];
   }, [trustList]);
-
-  // const headerTrustList = useMemo(() => {
-  //   const allowedTrustIds = [1, 2, 3, 6];
-
-  //   return allowedTrustIds.map((id) => {
-  //     const found = trustData.find(
-  //       (item) => item?.inboundDetails?.[0]?.trustId === id
-  //     );
-
-  //     return {
-  //       trustId: id,
-  //       trustName:
-  //         found?.inboundDetails?.[0]?.trustName || `Trust ${id}`,
-  //     };
-  //   });
-  // }, [trustData]);
-
-  /* ================= DROPDOWN HANDLING ================= */
 
   const toggleDropdown = () => setIsDropdownOpen((s) => !s);
   const toggleSettings = () => setIsSettingsOpen((s) => !s);
@@ -246,7 +238,21 @@ export default function Header({
         {/* USER INFO */}
         <div className="user-menu">
           <p className="welcome">
-            Welcome, {username || "user"}
+            <span className="welcome-label">Welcome,</span>
+            {hasFullName ? (
+              <span className="welcome-name">
+                <span>{firstName || lastName}</span>
+                {lastName && firstName && (
+                  <span className={stackLastName ? "welcome-last-line" : ""}>
+                    {lastName}
+                  </span>
+                )}
+              </span>
+            ) : (
+              <span className="welcome-name">
+                <span>{displayName}</span>
+              </span>
+            )}
           </p>
 
           <i
@@ -266,9 +272,11 @@ export default function Header({
               <i className="ri-home-4-line" /> Home
             </li>
 
-            <li className="dropdown-item" onClick={goToAdmin}>
-              <i className="ri-shield-user-line" /> Admin
-            </li>
+            {isAdminUser && (
+              <li className="dropdown-item" onClick={goToAdmin}>
+                <i className="ri-shield-user-line" /> Admin
+              </li>
+            )}
 
             <li className="dropdown-item" onClick={goToProfile}>
               <i className="ri-user-line" /> Profile
@@ -291,6 +299,7 @@ export default function Header({
                 gridCount={gridCount}
                 queueWarningLimit={queueWarningLimit}
                 serviceDelayLimit={serviceDelayLimit}
+                maxGridCount={maxGridCount}
                 selectedTrustIds={selectedTrustIds}
                 onTrustChange={onTrustChange}
                 trustList={trustList}

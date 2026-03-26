@@ -3,7 +3,7 @@
   justify-content: flex-end;
 }
 
-.add-user-btn {
+.add-btn{
   padding: 10px 20px;
   background-color: #60a3d9;
   color: #fff;
@@ -14,7 +14,7 @@
   margin: 20px 0;
 }
 
-.add-user-btn:hover {
+.add-btn:hover {
   background-color: #5995c6;
 }
 

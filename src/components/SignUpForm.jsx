@@ -3,6 +3,19 @@ import { getTrusts } from "../api/trustService";
 import { createUser, updateUser } from "../api/userService";
 import "./SignUpForm.css";
 
+const USERNAME_REGEX = /^[A-Za-z0-9-]+$/;
+
+const getTrustLabels = (trusts = []) =>
+  (Array.isArray(trusts) ? trusts : [])
+    .map((trust) => {
+      if (typeof trust === "string") return trust;
+      if (trust && typeof trust === "object") {
+        return trust.name ?? trust.label ?? "";
+      }
+      return "";
+    })
+    .filter(Boolean);
+
 export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
   const ROLES = [
     { id: 1, label: "Admin" },
@@ -25,7 +38,7 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
     firstName: initial.firstName ?? "",
     lastName: initial.lastName ?? "",
     role: initialRole,
-    trusts: initial.trusts ?? [],
+    trusts: getTrustLabels(initial.trusts),
     email: initial.email ?? "",
     username: initial.username ?? initial.email ?? "",
     phone: String(initial.phone ?? initial.mobile ?? ""),
@@ -37,6 +50,7 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
   const [success, setSuccess] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [isTrustDropdownOpen, setIsTrustDropdownOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -83,10 +97,10 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
   }, [isTrustDropdownOpen]);
 
   useEffect(() => {
-    if (trustOptions.length === 0) return;
-
     const resolvedTrusts =
-      initial.trusts ??
+      getTrustLabels(initial.trusts).length > 0
+        ? getTrustLabels(initial.trusts)
+        :
       initial.trustIds
         ?.map((trustId) => trustOptions.find((trust) => trust.id === trustId)?.label)
         .filter(Boolean) ??
@@ -116,8 +130,22 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
     "email",
     "phone",
     "username",
-    "password",
+    ...(!initial.id ? ["password"] : []),
   ];
+
+  const getUsernameError = (value) => {
+    const trimmedValue = value.trim();
+
+    if (!trimmedValue) {
+      return "Username is required";
+    }
+
+    if (!USERNAME_REGEX.test(trimmedValue)) {
+      return "Username can contain only letters, numbers, and hyphen";
+    }
+
+    return null;
+  };
 
   /* ---------- CASCADING VALIDATION ---------- */
   const validateUpTo = (targetField) => {
@@ -152,6 +180,13 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
         }
       }
 
+      if (field === "username") {
+        const usernameError = getUsernameError(form.username);
+        if (usernameError) {
+          err.username = usernameError;
+        }
+      }
+
       if (field === "password") {
         if (!initial.id && !form.password.trim()) {
           err.password = "Password is required";
@@ -170,15 +205,15 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    setForm((prev) => {
-      const nextForm = { ...prev, [name]: value };
+    setForm((prev) => ({ ...prev, [name]: value }));
 
-      if (name === "email") {
-        nextForm.username = value;
-      }
-
-      return nextForm;
-    });
+    if (name === "username") {
+      setErrors((prev) => ({
+        ...prev,
+        username: getUsernameError(value),
+      }));
+      return;
+    }
 
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: null }));
@@ -211,6 +246,8 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
       trusts: values,
     }));
 
+    setIsTrustDropdownOpen(false);
+
     if (errors.trusts) {
       setErrors((prev) => ({ ...prev, trusts: null }));
     }
@@ -233,7 +270,7 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
     setSubmitError("");
     setSuccess("");
 
-    validateUpTo("password");
+    validateUpTo(initial.id ? "phone" : "password");
     if (!isFormValid) return;
 
     const roleId =
@@ -248,11 +285,14 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
       mobile: Number(form.phone),
-      password: form.password,
       roleId,
       trustIds,
-      username: form.email.trim(),
+      username: form.username.trim(),
     };
+
+    if (!initial.id && form.password && form.password.trim() !== "") {
+      payload.password = form.password.trim();
+    }
 
     try {
       setLoading(true);
@@ -289,24 +329,27 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
     form.trusts.length > 0 &&
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) &&
     /^\d{10}$/.test(form.phone) &&
-    (initial.id
-      ? !form.password || form.password.length >= 6
-      : form.password.length >= 6);
+    USERNAME_REGEX.test(form.username.trim()) &&
+    (initial.id || form.password.length >= 6);
 
   return (
     <div className="content">
-      <div className="form-header">
-        <div className="back-btn">
-          <div className="icon-btn" onClick={onCancel}>
-            <i className="fa-solid fa-less-than"></i>
-          </div>
-          <button className="add-user-btn" onClick={onCancel}>
-              List of Users
-          </button>
+      <h2 className="form-title">
+        {initial.id ? "Edit User" : "Sign Up"}
+      </h2>
+
+      <div className="signup-actions">
+        <div className="icon-btn" onClick={onCancel}>
+          <i className="fa-solid fa-less-than"></i>
         </div>
-        <h2 className="form-title">
-          {initial.id ? "Edit User" : "Sign Up"}
-        </h2>
+
+        <button
+          type="button"
+          className="signup-list-btn"
+          onClick={onCancel}
+        >
+          List of Users
+        </button>
       </div>
 
       {success && <div className="form-msg form-success">{success}</div>}
@@ -428,23 +471,39 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
           name="username"
           className={`form-input ${errors.username ? "input-invalid" : ""}`}
           value={form.username}
-          readOnly
-        />
-
-        {/* Password */}
-        <label className="form-label">
-          Password{initial.id ? " (optional)" : "*"}
-        </label>
-        <input
-          type="password"
-          name="password"
-          className={`form-input ${errors.password ? "input-invalid" : ""}`}
-          value={form.password}
           onFocus={() => validateUpTo("phone")}
           onChange={handleChange}
+          onBlur={() =>
+            setErrors((prev) => ({
+              ...prev,
+              username: getUsernameError(form.username),
+            }))
+          }
+          placeholder="Enter username"
         />
-        {errors.password && (
-          <p className="input-error">{errors.password}</p>
+        {errors.username && <p className="input-error">{errors.username}</p>}
+
+        {!initial.id && (
+          <>
+            <label className="form-label">Password*</label>
+            <div className="passwordField">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                className={`form-input ${errors.password ? "input-invalid" : ""}`}
+                value={form.password}
+                onFocus={() => validateUpTo("username")}
+                onChange={handleChange}
+              />
+              <i
+                className={`fa ${showPassword ? "fa-eye-slash" : "fa-eye"} passwordToggle`}
+                onClick={() => setShowPassword((prev) => !prev)}
+              />
+            </div>
+            {errors.password && (
+              <p className="input-error">{errors.password}</p>
+            )}
+          </>
         )}
 
         <button

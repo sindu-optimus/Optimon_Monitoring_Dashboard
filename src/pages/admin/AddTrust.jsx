@@ -62,9 +62,9 @@ export default function AddTrust() {
         <h2>Trusts List</h2>
       </div>
 
-      <div className="trust-actions">
+      <div className="trustForm-actions">
         <button
-          className="add-trust-btn"
+          className="add-btn"
           onClick={() => {
             setEditingTrust(null);
             setShowForm(true);

@@ -1,3 +1,33 @@
+/* .signup-topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: flex-start;
+  margin-bottom: 8px;
+} */
+
+.signup-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.signup-list-btn {
+  padding: 10px 20px;
+  background-color: #60a3d9;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  margin: 20px 0;
+}
+
+.signup-list-btn:hover {
+  background-color: #5995c6;
+}
+
 .multiSelect {
   position: relative;
   margin: 10px 0 14px;
@@ -43,7 +73,7 @@
 
 .multiSelectMenu {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100%);
   left: 0;
   right: 0;
   z-index: 20;
@@ -86,4 +116,21 @@
 
 .input-invalid.multiSelectTrigger {
   border-color: #d64545;
+}
+
+.passwordField {
+  position: relative;
+}
+
+.passwordField .form-input {
+  padding-right: 42px;
+}
+
+.passwordToggle {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6b7280;
+  cursor: pointer;
 }

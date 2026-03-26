@@ -9,6 +9,7 @@
   position: sticky;
   top: 50px;
   left: 0;
+  overflow: visible;
 
   transition: width 0.25s ease;
   z-index: 1000;
@@ -41,12 +42,13 @@
   padding: 0;
   margin: 0;
   height: calc(100% - 60px);
-  overflow-y: auto;
+  overflow: visible;
 }
 
 .sidebar li {
   padding: 10px 20px;
   cursor: pointer;
+  position: relative;
 }
 
 .sidebar li:hover {
@@ -105,7 +107,7 @@
 /* ================= TOOLTIP ================= */
 .tooltip {
   position: absolute;
-  left: 48px;
+  left: calc(100% + 12px);
   top: 50%;
   transform: translateY(-50%) translateX(-5px);
 
@@ -119,7 +121,7 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
-  z-index: 2000;
+  z-index: 3000;
 }
 
 .sidebar.collapsed li:hover .tooltip {
@@ -175,6 +177,7 @@
     height: calc(100vh - 50px);
     transform: translateX(-100%);
     transition: transform 0.3s ease;
+    overflow-y: auto;
   }
 
   .sidebar.open {

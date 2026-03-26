@@ -15,12 +15,10 @@ export default function AdminSidebar() {
   const menuItems = [
     { name: "Profile", path: "/admin/profile", icon: "ri-user-line", activeIcon: "ri-user-fill" },
     { name: "Trusts List", path: "/admin/add-trusts", icon: "ri-shield-check-line", activeIcon: "ri-shield-check-fill" },
-    { name: "View Actions", path: "/admin/view-actions", icon: "ri-history-line", activeIcon: "ri-history-fill" },
-    { name: "Add Action", path: "/admin/add-action", icon: "ri-add-line", activeIcon: "ri-add-fill" },
+    { name: "Support Actions", path: "/admin/support-actions", icon: "ri-history-line", activeIcon: "ri-history-fill" },
     { name: "Send Mail", path: "/admin/send-email", icon: "ri-send-plane-line", activeIcon: "ri-send-plane-fill" },
     { name: "FAQs", path: "/admin/faqs", icon: "ri-question-line", activeIcon: "ri-question-fill" },
     { name: "Users", path: "/admin/add-users", icon: "ri-team-line", activeIcon: "ri-team-fill" },
-    { name: "Support", path: "/admin/trust-support", icon: "ri-tools-line", activeIcon: "ri-tools-fill" },
     { name: "Interfaces", path: "/admin/summary-interfaces", icon: "ri-bar-chart-line", activeIcon: "ri-bar-chart-fill" },
     { name: "Settings", path: "/admin/settings", icon: "ri-settings-3-line", activeIcon: "ri-settings-3-fill" },
   ];

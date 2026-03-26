@@ -78,6 +78,16 @@
   border: 1px solid #ccc;
 }
 
+.login-input.input-invalid {
+  border-color: #d9534f;
+}
+
+.input-error {
+  margin: -4px 0 8px;
+  font-size: 13px;
+  color: #d9534f;
+}
+
 .login-password {
   position: relative;
 }
@@ -113,6 +123,20 @@
 
 .login-btn:hover {
   background-color: #5995c6;
+}
+
+.form-msg {
+  padding: 10px 14px;
+  border-radius: 4px;
+  margin: 0 0 15px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.form-error {
+  background: #ffe6e6;
+  color: #d9534f;
+  border: 1px solid #f4b4b4;
 }
 
 @media (max-width: 768px) {
