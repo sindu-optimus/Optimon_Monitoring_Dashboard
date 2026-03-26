@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import Server from "./Server";
 import "remixicon/fonts/remixicon.css";
 import bgVideo from "../../assets/servers-bg.mp4";
+import { getTrustMeta } from "../../utils/trustData";
 import "./Servers.css";
 
 function extractServersFromData(dataList, colorMapRef) {
@@ -21,10 +22,8 @@ function extractServersFromData(dataList, colorMapRef) {
   ];
 
   return dataList.reduce((acc, data) => {
-    const inbound = data.inboundDetails?.[0];
-    if (!inbound) return acc;
-
-    const trustId = inbound.trustId;
+    const { trustId, trustName } = getTrustMeta(data);
+    if (trustId == null) return acc;
 
     // assign stable color per trust
     if (!colorMapRef.current[trustId]) {
@@ -35,7 +34,7 @@ function extractServersFromData(dataList, colorMapRef) {
 
     acc.push({
       trustId,
-      serverName: `${inbound.trustName || `Trust-${trustId}`}-Cloud`,
+      serverName: `${trustName || `Trust-${trustId}`}-Cloud`,
       bgColor: colorMapRef.current[trustId],
       inbound: data.inboundDetails || [],
       queue: data.queueDetails || [],

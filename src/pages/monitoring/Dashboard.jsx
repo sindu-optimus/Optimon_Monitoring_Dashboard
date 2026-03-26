@@ -8,7 +8,6 @@ const Dashboard = () => {
   const { id } = useParams();
   const [dashboardData, setDashboardData] = useState(null);
 
-  // ✅ Fake dashboard data
   const mockDashboardData = {
     status: "Healthy",
 

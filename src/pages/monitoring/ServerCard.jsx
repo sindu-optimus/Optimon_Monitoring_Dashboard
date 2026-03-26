@@ -8,6 +8,7 @@ export default function ServerCard({
   serverName,
   queues = [],
   endpoints = [],
+  noPendingServices = false,
   bgColor = "#fff",
   lastUpdated = null,
   lastUpdatedText = "",
@@ -29,6 +30,16 @@ export default function ServerCard({
       return val.includes("no pending");
     });
   }, [queues]);
+
+  const hasBackendNoServices = useMemo(() => {
+    return endpoints.some((endpoint) => {
+      const name = String(
+        endpoint.name ?? endpoint.serviceName ?? endpoint.endpointName ?? ""
+      ).toLowerCase();
+
+      return name.includes("no service available");
+    });
+  }, [endpoints]);
 
   /* ================= STATUS ================= */
 
@@ -202,7 +213,15 @@ export default function ServerCard({
         <h4 className="endpoint">Endpoints Status</h4>
 
         <div className="endpoint-section">
-          {endpoints.length > 0 ? (
+          {noPendingServices || hasBackendNoServices ? (
+            <div className="cardEmptyState">
+              <i className="ri-checkbox-circle-fill"></i>
+
+              <p>All Inbounds are active</p>
+
+              <span>Everything is running smoothly</span>
+            </div>
+          ) : endpoints.length > 0 ? (
             <div className="endpoint-content">
               <table>
                 <thead>

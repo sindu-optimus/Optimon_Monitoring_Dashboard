@@ -7,6 +7,7 @@ export default function SettingsPage({
   onRefreshTimeChange,
   gridCount,
   onGridCountChange,
+  maxGridCount,
   selectedTrustIds,
   onTrustChange,
   queueWarningLimit,
@@ -24,6 +25,7 @@ export default function SettingsPage({
           onRefreshTimeChange={onRefreshTimeChange}
           gridCount={gridCount}
           onGridCountChange={onGridCountChange}
+          maxGridCount={maxGridCount}
           selectedTrustIds={selectedTrustIds}
           onTrustChange={onTrustChange}
           queueWarningLimit={queueWarningLimit}

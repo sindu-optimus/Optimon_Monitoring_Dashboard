@@ -1,12 +1,24 @@
-// Profile.jsx
 import React, { useEffect, useState } from "react";
-import SidebarLayout from "../../layouts/SidebarLayout";
+import { getUser, updateUser } from "../../api/userService";
 import "./Profile.css";
 
-// Later you can add: role from props or backend
-export default function Profile({ username = "User", defaultRole = "Admin" }) {
+const ROLE_LABELS = {
+  1: "Admin",
+  2: "Operator",
+  3: "Developer",
+  4: "Viewer",
+};
+
+export default function Profile({
+  username = "User",
+  defaultRole = "Admin",
+  userProfile = null,
+}) {
   const [loading, setLoading] = useState(true);
   const [saveMessage, setSaveMessage] = useState("");
+  const [saveError, setSaveError] = useState("");
+  const [savingPersonal, setSavingPersonal] = useState(false);
+  const [currentUser, setCurrentUser] = useState(userProfile);
 
   const [personal, setPersonal] = useState({
     firstName: "",
@@ -16,7 +28,8 @@ export default function Profile({ username = "User", defaultRole = "Admin" }) {
     phone: "",
     role: "",
     location: "",
-    avatar: "", // avatar image as data URL
+    avatar: "",
+    trusts: [],
   });
 
   const [address, setAddress] = useState({
@@ -26,89 +39,210 @@ export default function Profile({ username = "User", defaultRole = "Admin" }) {
   });
 
   const [personalEditing, setPersonalEditing] = useState(false);
-  const [addressEditing, setAddressEditing] = useState(false);
-
   const storageKey = `profile_${username}`;
 
-  // ---------- LOAD FROM localStorage ----------
-  useEffect(() => {
-    setLoading(true);
-    setSaveMessage("");
+  const normalizeTrusts = (source = {}, fallbackTrusts = []) => {
+    if (Array.isArray(source?.trusts) && source.trusts.length > 0) {
+      return source.trusts;
+    }
 
-    const saved = localStorage.getItem(storageKey);
-
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-
-        setPersonal({
-          firstName: parsed.personal?.firstName ?? username,
-          lastName: parsed.personal?.lastName ?? "",
-          dob: parsed.personal?.dob ?? "",
-          email: parsed.personal?.email ?? "",
-          phone: parsed.personal?.phone ?? "",
-          role: parsed.personal?.role ?? defaultRole,
-          location: parsed.personal?.location ?? "",
-          avatar: parsed.personal?.avatar ?? "",
-        });
-
-        setAddress({
-          country: parsed.address?.country ?? "",
-          city: parsed.address?.city ?? "",
-          postalCode: parsed.address?.postalCode ?? "",
-        });
-      } catch (e) {
-        console.error("Error reading profile from localStorage", e);
-        // fallback to defaults
-        setPersonal((prev) => ({
-          ...prev,
-          firstName: username,
-          role: defaultRole,
-        }));
-      }
-    } else {
-      // first time user → initialise with username + defaultRole
-      setPersonal((prev) => ({
-        ...prev,
-        firstName: username,
-        role: defaultRole,
+    if (Array.isArray(source?.trustIds) && source.trustIds.length > 0) {
+      return source.trustIds.map((id) => ({
+        id,
+        name: `Trust ${id}`,
       }));
     }
 
-    setLoading(false);
-  }, [storageKey, username, defaultRole]);
+    return fallbackTrusts;
+  };
 
-  // ---------- SAVE TO localStorage ----------
-  const saveToLocalStorage = () => {
-    const payload = {
-      personal,
-      address,
+  useEffect(() => {
+    const loadProfile = async () => {
+      setLoading(true);
+      setSaveMessage("");
+
+      const saved = localStorage.getItem(storageKey);
+      let parsedSaved = null;
+
+      if (saved) {
+        try {
+          parsedSaved = JSON.parse(saved);
+        } catch (error) {
+          console.error("Error reading profile from localStorage", error);
+        }
+      }
+
+      const buildPersonal = (source) => ({
+        firstName: source?.firstName ?? username,
+        lastName: source?.lastName ?? "",
+        dob: source?.dob ?? "",
+        email: source?.email ?? "",
+        phone:
+          source?.mobile !== undefined && source?.mobile !== null
+            ? String(source.mobile)
+            : parsedSaved?.personal?.phone ?? "",
+        role: ROLE_LABELS[source?.roleId] || source?.role || defaultRole,
+        location: source?.location ?? parsedSaved?.personal?.location ?? "",
+        avatar: parsedSaved?.personal?.avatar ?? "",
+        trusts: normalizeTrusts(
+          source,
+          parsedSaved?.personal?.trusts || userProfile?.trusts || []
+        ),
+      });
+
+      const savedAddress = {
+        country: parsedSaved?.address?.country ?? "",
+        city: parsedSaved?.address?.city ?? "",
+        postalCode: parsedSaved?.address?.postalCode ?? "",
+      };
+
+      try {
+        if (userProfile?.id) {
+          const res = await getUser(userProfile.id);
+          const apiUser = res.data;
+          setCurrentUser(apiUser);
+          setPersonal(buildPersonal(apiUser));
+          setAddress(savedAddress);
+          localStorage.setItem("loggedInUser", JSON.stringify(apiUser));
+          localStorage.setItem(
+            storageKey,
+            JSON.stringify({
+              personal: {
+                ...parsedSaved?.personal,
+                ...buildPersonal(apiUser),
+              },
+              address: savedAddress,
+            })
+          );
+        } else {
+          setCurrentUser(userProfile);
+          setPersonal(buildPersonal(userProfile));
+          setAddress(savedAddress);
+        }
+      } catch (error) {
+        console.error("Error fetching profile from API", error);
+        setCurrentUser(userProfile);
+        setPersonal(buildPersonal(userProfile));
+        setAddress(savedAddress);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    localStorage.setItem(storageKey, JSON.stringify(payload));
-    // setSaveMessage("Profile saved.");
+    loadProfile();
+  }, [storageKey, username, defaultRole, userProfile]);
+
+  const saveToLocalStorage = (
+    nextPersonal = personal,
+    nextAddress = address
+  ) => {
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        personal: nextPersonal,
+        address: nextAddress,
+      })
+    );
     setTimeout(() => setSaveMessage(""), 2500);
   };
+
+  const getRoleIdFromLabel = (roleLabel) =>
+    Number(
+      Object.entries(ROLE_LABELS).find(([, label]) => label === roleLabel)?.[0]
+    ) || null;
 
   const handlePersonalChange = (field, value) => {
     setPersonal((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleAddressChange = (field, value) => {
-    setAddress((prev) => ({ ...prev, [field]: value }));
+  const handleStartPersonalEdit = () => {
+    setSaveError("");
+    setPersonalEditing(true);
   };
 
-  const handleSavePersonal = () => {
-    saveToLocalStorage();
-    setPersonalEditing(false);
+  const handleSavePersonal = async () => {
+    setSaveError("");
+
+    if (!userProfile?.id) {
+      saveToLocalStorage();
+      setSaveMessage("Profile saved locally");
+      setPersonalEditing(false);
+      return;
+    }
+
+    const roleId =
+      getRoleIdFromLabel(personal.role) ??
+      currentUser?.roleId ??
+      userProfile?.roleId ??
+      0;
+
+    try {
+      setSavingPersonal(true);
+      const latestUserResponse = await getUser(userProfile.id);
+      const latestUser = latestUserResponse.data;
+      setCurrentUser(latestUser);
+
+      const editedTrustIds = (personal.trusts || [])
+        .map((trust) => Number(trust?.id))
+        .filter((id) => Number.isInteger(id));
+
+      const existingTrustIds = normalizeTrusts(
+        latestUser,
+        userProfile?.trusts || []
+      )
+        .map((trust) => Number(trust?.id))
+        .filter((id) => Number.isInteger(id));
+
+      const payload = {
+        ...latestUser,
+        email: personal.email.trim(),
+        firstName: personal.firstName.trim(),
+        lastName: personal.lastName.trim(),
+        mobile: Number(personal.phone),
+        roleId,
+        trustIds: editedTrustIds.length > 0 ? editedTrustIds : existingTrustIds,
+        username:
+          latestUser?.username ||
+          personal.email.trim() ||
+          userProfile?.username ||
+          "",
+      };
+
+      console.log("Profile update payload:", payload);
+
+      const res = await updateUser(userProfile.id, payload);
+      const updatedUser = {
+        ...latestUser,
+        ...(res?.data || {}),
+        ...payload,
+        trusts: normalizeTrusts(res?.data || latestUser, personal.trusts),
+      };
+
+      const nextPersonal = {
+        ...personal,
+        trusts: updatedUser.trusts,
+      };
+
+      setCurrentUser(updatedUser);
+      setPersonal(nextPersonal);
+      saveToLocalStorage(nextPersonal, address);
+      localStorage.setItem("loggedInUser", JSON.stringify(updatedUser));
+      setSaveMessage("Profile updated successfully");
+      setPersonalEditing(false);
+    } catch (error) {
+      console.error("Error updating profile", error);
+      setSaveError(
+        error.response?.data?.message ||
+          error.response?.data?.error ||
+          error.response?.data ||
+          "Failed to update profile"
+      );
+    } finally {
+      setSavingPersonal(false);
+      setTimeout(() => setSaveMessage(""), 2500);
+    }
   };
 
-  const handleSaveAddress = () => {
-    saveToLocalStorage();
-    setAddressEditing(false);
-  };
-
-  // ---------- AVATAR HANDLERS ----------
   const handleAvatarChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -116,37 +250,32 @@ export default function Profile({ username = "User", defaultRole = "Admin" }) {
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result;
-      // store in state
-      setPersonal((prev) => ({ ...prev, avatar: dataUrl }));
-      // save immediately
-      const payload = {
-        personal: { ...personal, avatar: dataUrl },
-        address,
-      };
-      localStorage.setItem(storageKey, JSON.stringify(payload));
+      const nextPersonal = { ...personal, avatar: dataUrl };
+      setPersonal(nextPersonal);
+      saveToLocalStorage(nextPersonal, address);
     };
     reader.readAsDataURL(file);
   };
 
   const handleAvatarRemove = () => {
-    setPersonal((prev) => ({ ...prev, avatar: "" }));
-    const payload = {
-      personal: { ...personal, avatar: "" },
-      address,
-    };
-    localStorage.setItem(storageKey, JSON.stringify(payload));
+    const nextPersonal = { ...personal, avatar: "" };
+    setPersonal(nextPersonal);
+    saveToLocalStorage(nextPersonal, address);
   };
 
   const fullName =
     `${personal.firstName || ""} ${personal.lastName || ""}`.trim() ||
     username;
+  const trustNames =
+    personal.trusts?.map((trust) => trust.name).filter(Boolean).join(", ") ||
+    "-";
 
   if (loading) {
     return (
       <div className="profile-page">
         <h2 className="profile-page-title">My Profile</h2>
         <div className="profile-card">
-          <p>Loading profile…</p>
+          <p>Loading profile...</p>
         </div>
       </div>
     );
@@ -158,10 +287,10 @@ export default function Profile({ username = "User", defaultRole = "Admin" }) {
         <h2 className="profile-page-title">My Profile</h2>
 
         {saveMessage && (
-          <div className="profile-save-message">{saveMessage}</div>
+          <div className="profile-save-message success">{saveMessage}</div>
         )}
+        {saveError && <div className="profile-save-message error">{saveError}</div>}
 
-        {/* Top summary card */}
         <section className="profile-card">
           <div className="profile-avatar">
             <div className="avatar-circle">
@@ -175,7 +304,6 @@ export default function Profile({ username = "User", defaultRole = "Admin" }) {
               )}
             </div>
 
-            {/* Icon actions overlay */}
             <div className="avatar-actions">
               <label className="avatar-icon-btn edit" title="Change photo">
                 <input
@@ -210,7 +338,6 @@ export default function Profile({ username = "User", defaultRole = "Admin" }) {
           </div>
         </section>
 
-        {/* Personal Information */}
         <section className="profile-section">
           <div className="section-header">
             <h3>Personal Information</h3>
@@ -218,10 +345,11 @@ export default function Profile({ username = "User", defaultRole = "Admin" }) {
               type="button"
               className="section-edit-btn"
               onClick={() =>
-                personalEditing ? handleSavePersonal() : setPersonalEditing(true)
+                personalEditing ? handleSavePersonal() : handleStartPersonalEdit()
               }
+              disabled={savingPersonal}
             >
-              {personalEditing ? "Save" : "Edit"}
+              {savingPersonal ? "Saving..." : personalEditing ? "Save" : "Edit"}
             </button>
           </div>
 
@@ -257,19 +385,15 @@ export default function Profile({ username = "User", defaultRole = "Admin" }) {
             </div>
 
             <div className="field">
-              <span className="field-label">Date of Birth</span>
+              <span className="field-label">Role</span>
               {personalEditing ? (
                 <input
-                  type="date"
-                  value={personal.dob}
-                  onChange={(e) => handlePersonalChange("dob", e.target.value)}
+                  type="text"
+                  value={personal.role}
+                  onChange={(e) => handlePersonalChange("role", e.target.value)}
                 />
               ) : (
-                <span className="field-value">
-                  {personal.dob
-                    ? new Date(personal.dob).toLocaleDateString("en-GB")
-                    : "-"}
-                </span>
+                <span className="field-value">{personal.role || "-"}</span>
               )}
             </div>
 
@@ -279,9 +403,7 @@ export default function Profile({ username = "User", defaultRole = "Admin" }) {
                 <input
                   type="email"
                   value={personal.email}
-                  onChange={(e) =>
-                    handlePersonalChange("email", e.target.value)
-                  }
+                  onChange={(e) => handlePersonalChange("email", e.target.value)}
                 />
               ) : (
                 <span className="field-value">{personal.email || "-"}</span>
@@ -294,9 +416,7 @@ export default function Profile({ username = "User", defaultRole = "Admin" }) {
                 <input
                   type="text"
                   value={personal.phone}
-                  onChange={(e) =>
-                    handlePersonalChange("phone", e.target.value)
-                  }
+                  onChange={(e) => handlePersonalChange("phone", e.target.value)}
                 />
               ) : (
                 <span className="field-value">{personal.phone || "-"}</span>
@@ -304,83 +424,8 @@ export default function Profile({ username = "User", defaultRole = "Admin" }) {
             </div>
 
             <div className="field">
-              <span className="field-label">User Role</span>
-              {personalEditing ? (
-                <select
-                  value={personal.role}
-                  onChange={(e) =>
-                    handlePersonalChange("role", e.target.value)
-                  }
-                >
-                  <option value="">Select role</option>
-                  <option value="Admin">Admin</option>
-                  <option value="User">User</option>
-                  <option value="Manager">Manager</option>
-                </select>
-              ) : (
-                <span className="field-value">{personal.role || "-"}</span>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* Address */}
-        <section className="profile-section">
-          <div className="section-header">
-            <h3>Address</h3>
-            <button
-              type="button"
-              className="section-edit-btn"
-              onClick={() =>
-                addressEditing ? handleSaveAddress() : setAddressEditing(true)
-              }
-            >
-              {addressEditing ? "Save" : "Edit"}
-            </button>
-          </div>
-
-          <div className="section-body grid-3">
-            <div className="field">
-              <span className="field-label">Country</span>
-              {addressEditing ? (
-                <input
-                  type="text"
-                  value={address.country}
-                  onChange={(e) =>
-                    handleAddressChange("country", e.target.value)
-                  }
-                />
-              ) : (
-                <span className="field-value">{address.country || "-"}</span>
-              )}
-            </div>
-
-            <div className="field">
-              <span className="field-label">City</span>
-              {addressEditing ? (
-                <input
-                  type="text"
-                  value={address.city}
-                  onChange={(e) => handleAddressChange("city", e.target.value)}
-                />
-              ) : (
-                <span className="field-value">{address.city || "-"}</span>
-              )}
-            </div>
-
-            <div className="field">
-              <span className="field-label">Postal Code</span>
-              {addressEditing ? (
-                <input
-                  type="text"
-                  value={address.postalCode}
-                  onChange={(e) =>
-                    handleAddressChange("postalCode", e.target.value)
-                  }
-                />
-              ) : (
-                <span className="field-value">{address.postalCode || "-"}</span>
-              )}
+              <span className="field-label">Trusts</span>
+              <span className="field-value trusts-value">{trustNames}</span>
             </div>
           </div>
         </section>

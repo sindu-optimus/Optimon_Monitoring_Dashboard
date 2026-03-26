@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import LoginNavbar from "../../components/LoginNavbar";
 import monitoringVector from "../../assets/monitoring_vector.png";
 import bgVideo from "../../assets/servers-bg.mp4";
+import { loginUser } from "../../api/loginService";
 import "./Login.css";
 
 const Login = ({ onLogin }) => {
@@ -12,19 +13,19 @@ const Login = ({ onLogin }) => {
 
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+  const [apiError, setApiError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   /* ---------- VALIDATION ---------- */
   const validate = (trigger) => {
     const err = {};
 
-    // Password interaction without username
     if (trigger === "password" && !loginData.username.trim()) {
       err.username = "Username is required";
       err.password = "Password is required";
       return setErrors(err);
     }
 
-    // Submit click
     if (trigger === "submit") {
       if (!loginData.username.trim()) {
         err.username = "Username is required";
@@ -39,25 +40,38 @@ const Login = ({ onLogin }) => {
     setErrors(err);
   };
 
-  /* ---------- FORM VALIDITY ---------- */
+  /* ---------- FORM VALID ---------- */
   const isFormValid =
     loginData.username.trim() &&
     loginData.password.length >= 6;
 
   /* ---------- SUBMIT ---------- */
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     validate("submit");
     if (!isFormValid) return;
 
-    if (
-      loginData.username === "admin" &&
-      loginData.password === "password"
-    ) {
-      onLogin(loginData.username);
-    } else {
-      alert("Invalid credentials");
+    try {
+      setLoading(true);
+      setApiError(""); // clear old error
+
+      const res = await loginUser(
+        loginData.username,
+        loginData.password
+      );
+
+      console.log("Login Success:", res.data);
+
+      onLogin(res.data, loginData.password);
+
+    } catch (error) {
+      console.error("Login Error:", error);
+      setApiError(
+        error.response?.data?.message || "Invalid credentials"
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -82,6 +96,7 @@ const Login = ({ onLogin }) => {
             <h1>OPTIMON+</h1>
 
             <form onSubmit={handleSubmit} noValidate>
+
               {/* USERNAME */}
               <input
                 className={`login-input ${
@@ -95,6 +110,9 @@ const Login = ({ onLogin }) => {
                     ...loginData,
                     username: e.target.value,
                   });
+                  if (apiError) {
+                    setApiError("");
+                  }
                   if (errors.username) {
                     setErrors((prev) => ({
                       ...prev,
@@ -122,6 +140,9 @@ const Login = ({ onLogin }) => {
                       ...loginData,
                       password: e.target.value,
                     });
+                    if (apiError) {
+                      setApiError("");
+                    }
                     if (errors.password) {
                       setErrors((prev) => ({
                         ...prev,
@@ -149,9 +170,16 @@ const Login = ({ onLogin }) => {
                 </span>
               </div>
 
-              <button className="btn" disabled={!isFormValid}>
-                Login
+              {apiError && <div className="input-error">{apiError}</div>}
+
+              {/* BUTTON */}
+              <button
+                className="btn"
+                disabled={!isFormValid || loading}
+              >
+                {loading ? "Logging in..." : "Login"}
               </button>
+
             </form>
           </div>
         </div>

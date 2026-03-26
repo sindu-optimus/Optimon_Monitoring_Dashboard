@@ -1,3 +1,33 @@
+.trust-topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: flex-start;
+  margin-bottom: 8px;
+}
+
+.trust-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.trust-list-btn {
+  padding: 10px 20px;
+  background-color: #60a3d9;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  margin: 20px 0;
+}
+
+.trust-list-btn:hover {
+  background-color: #5995c6;
+}
+
 /* ----------- ROOT CONTAINER ----------- */
 .page-layout {
   display: flex;

@@ -1,0 +1,432 @@
+.actions-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.add-action-btn {
+  padding: 10px 20px;
+  background-color: #60a3d9;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  margin-top: 20px;
+}
+
+.add-action-btn:hover {
+  background-color: #5995c6;
+}
+
+.filterWrapper {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.filterBlock {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.inputField {
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  height: 42px;
+  padding: 0 15px;
+  display: flex;
+  align-items: center;
+  margin-top: 30px;
+  color: #595959;
+}
+
+.searchBlock {
+  flex: 2 1 260px;
+}
+
+.inputField input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+}
+
+.dateRange {
+  display: flex;
+  flex: 2 1 320px;
+  gap: 10px;
+  min-width: 0;
+}
+
+.filterActions {
+  display: flex;
+  align-items: flex-end;
+  flex: 0 0 auto;
+}
+
+.search-action-btn {
+  height: 42px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 5px;
+  background-color: #60a3d9;
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+  margin-top: 20px;
+}
+
+.search-action-btn:hover {
+  background-color: #5995c6;
+}
+
+.trustFilter {
+  min-width: 180px;
+}
+
+.trustFilter select,
+.statusFilter select {
+  width: 100%;
+  border: 1px solid #ccc;
+  color: #595959;
+  border-radius: 5px;
+  height: 42px;
+  padding: 0 10px;
+  font-size: 16px;
+  background: #fff;
+}
+
+.statusFilter {
+  min-width: 160px;
+}
+
+.dateRange input {
+  border: 1px solid #ccc;
+  color: #595959;
+  border-radius: 5px;
+  height: 42px;
+  padding: 0 10px;
+  font-size: 16px;
+  width: 100%;
+}
+
+.formLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.dateRange input:focus,
+input:focus {
+  outline: none;
+}
+
+.dateRange input:hover,
+.trustFilter select:hover,
+.statusFilter select:hover,
+.inputField:hover {
+  background-color: #fff;
+  box-shadow: 0 0 8px #ddd;
+}
+
+.inputField i {
+  color: #60a3d9;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.formLabel input {
+  margin: 0;
+}
+
+.actions-box {
+  padding: 20px;
+}
+
+.action-item {
+  display: flex;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.action-item:last-child {
+  border-bottom: none;
+}
+
+.action-number {
+  font-weight: 600;
+}
+
+.action-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.action-info p {
+  margin: 0;
+  margin-bottom: 10px;
+  text-align: left;
+}
+
+.action-description {
+  margin-bottom: 10px;
+}
+
+.action-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.action-line p {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.action-line .action-description {
+  margin-bottom: 10px;
+  flex: 1;
+}
+
+.action-action-buttons {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+}
+
+.action-action-buttons button {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.edit-btn {
+  background-color: #60a3d9;
+  color: #fff;
+}
+
+.edit-btn:hover {
+  background-color: #5995c6;
+}
+
+.delete-btn {
+  background-color: #e74c3c;
+  color: #fff;
+}
+
+.delete-btn:hover {
+  background-color: #c0392b;
+}
+
+.action-action-buttons button:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.action-action-buttons .delete-btn:disabled {
+  background-color: #c9ced6;
+  color: #6b7280;
+}
+
+.action-action-buttons .delete-btn:disabled:hover {
+  background-color: #c9ced6;
+}
+
+.error {
+  margin: 12px 0;
+  color: #d9534f;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.deleteModal {
+  width: min(100%, 460px);
+  background: #fff;
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.2);
+}
+
+.deleteModal h3 {
+  margin: 0 0 14px;
+  color: #1f2937;
+  font-size: 22px;
+}
+
+.deleteModal textarea {
+  width: 100%;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  padding: 12px 14px;
+  resize: vertical;
+  min-height: 110px;
+  font-size: 15px;
+  color: #374151;
+}
+
+.deleteModal textarea:focus {
+  outline: none;
+  border-color: #60a3d9;
+  box-shadow: 0 0 0 3px rgba(96, 163, 217, 0.15);
+}
+
+.modalError {
+  margin: 10px 0 0;
+  color: #d9534f;
+  font-size: 14px;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.modalCancelBtn,
+.modalDeleteBtn {
+  min-width: 110px;
+  height: 42px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.modalCancelBtn {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.modalDeleteBtn {
+  background: #e74c3c;
+  color: #fff;
+}
+
+.modalCancelBtn:hover {
+  background: #d1d5db;
+}
+
+.modalDeleteBtn:hover {
+  background: #c0392b;
+}
+
+.modalCancelBtn:disabled,
+.modalDeleteBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .filterWrapper {
+    align-items: stretch;
+    gap: 15px;
+  }
+
+  .inputField {
+    margin-top: 10px;
+  }
+
+  .filterBlock,
+  .searchBlock,
+  .dateRange {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .dateRange {
+    flex-direction: column;
+  }
+
+  .filterActions {
+    width: 100%;
+  }
+
+  .search-action-btn {
+    width: 100%;
+  }
+
+  .trustFilter {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .statusFilter {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .dateRange input {
+    width: 100%;
+  }
+
+  .action-item {
+    flex-direction: column;
+  }
+
+  .action-action-buttons {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .inputField {
+    height: 38px;
+    padding: 0 10px;
+    font-size: 14px;
+  }
+
+  .dateRange input {
+    height: 38px;
+    font-size: 14px;
+  }
+
+  .inputField i {
+    font-size: 14px;
+  }
+
+  .action-info p,
+  .action-description {
+    font-size: 13px;
+  }
+
+  .action-line {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .deleteModal {
+    padding: 18px;
+  }
+
+  .modalActions {
+    flex-direction: column;
+  }
+
+  .modalCancelBtn,
+  .modalDeleteBtn {
+    width: 100%;
+  }
+}
