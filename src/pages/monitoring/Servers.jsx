@@ -34,7 +34,7 @@ function extractServersFromData(dataList, colorMapRef) {
 
     acc.push({
       trustId,
-      serverName: `${trustName || `Trust-${trustId}`}-Cloud`,
+      serverName: `${trustName || `Trust-${trustId}`}`,
       bgColor: colorMapRef.current[trustId],
       inbound: data.inboundDetails || [],
       queue: data.queueDetails || [],

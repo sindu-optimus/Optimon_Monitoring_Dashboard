@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import "./Sidebar.css";
 import "remixicon/fonts/remixicon.css";
 
-export default function AdminSidebar() {
+export default function AdminSidebar({ isAdminUser = false }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -13,15 +13,24 @@ export default function AdminSidebar() {
   const [isOpen, setIsOpen] = useState(false);
 
   const menuItems = [
-    { name: "Profile", path: "/admin/profile", icon: "ri-user-line", activeIcon: "ri-user-fill" },
-    { name: "Trusts List", path: "/admin/add-trusts", icon: "ri-shield-check-line", activeIcon: "ri-shield-check-fill" },
     { name: "Support Actions", path: "/admin/support-actions", icon: "ri-history-line", activeIcon: "ri-history-fill" },
+    { name: "Critial Interface", path: "/admin/critical-interfaces", icon: "ri-alert-line", activeIcon: "ri-alert-fill" },
+    { name: "Trusts List", path: "/admin/add-trusts", icon: "ri-shield-check-line", activeIcon: "ri-shield-check-fill" },
     { name: "Send Mail", path: "/admin/send-email", icon: "ri-send-plane-line", activeIcon: "ri-send-plane-fill" },
     { name: "FAQs", path: "/admin/faqs", icon: "ri-question-line", activeIcon: "ri-question-fill" },
     { name: "Users", path: "/admin/add-users", icon: "ri-team-line", activeIcon: "ri-team-fill" },
     { name: "Interfaces", path: "/admin/summary-interfaces", icon: "ri-bar-chart-line", activeIcon: "ri-bar-chart-fill" },
+    { name: "Profile", path: "/admin/profile", icon: "ri-user-line", activeIcon: "ri-user-fill" },
     { name: "Settings", path: "/admin/settings", icon: "ri-settings-3-line", activeIcon: "ri-settings-3-fill" },
-  ];
+  ].filter((item) => {
+    if (isAdminUser) {
+      return true;
+    }
+
+    return !["/admin/add-trusts", "/admin/add-users", "/admin/summary-interfaces"].includes(
+      item.path
+    );
+  });
 
   const handleNavigate = (path) => {
     navigate(path);
@@ -35,7 +44,7 @@ export default function AdminSidebar() {
         
         {/* HEADER */}
         <div className="sidebar-header">
-          {!isCollapsed && <h2 className="sidebar-head">Admin</h2>}
+          {!isCollapsed && <h2 className="sidebar-head">Support</h2>}
 
           {/* Desktop collapse */}
           <button
@@ -58,7 +67,9 @@ export default function AdminSidebar() {
         {/* MENU */}
         <ul>
           {menuItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive =
+              location.pathname === item.path ||
+              location.pathname.startsWith(`${item.path}/`);
 
             return (
               <li

@@ -1,9 +1,12 @@
 .users-actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.add-btn{
+.add-btn {
   padding: 10px 20px;
   background-color: #60a3d9;
   color: #fff;
@@ -18,45 +21,95 @@
   background-color: #5995c6;
 }
 
-.user-box {
-  padding: 20px;
+.download-user-btn {
+  height: 42px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 6px;
+  background: #1f7a45;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(31, 122, 69, 0.18);
+  transition: background-color 0.2s ease, transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.download-user-btn i {
+  font-size: 18px;
+}
+
+.download-user-btn:hover:not(:disabled) {
+  background: #186238;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(24, 98, 56, 0.22);
+}
+
+.download-user-btn:disabled {
+  background: #b8c4bd;
+  color: #f8faf9;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.users-table-wrap {
+  margin-top: 20px;
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid #cfd8e3;
+  border-radius: 12px;
+}
+
+.users-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+}
+
+.users-table th,
+.users-table td {
+  padding: 14px 16px;
+  border: 1px solid #d9e1ea;
+  text-align: left;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.users-table th {
+  background: #f8fbfd;
+  color: #1f2937;
+  font-weight: 700;
+}
+
+.users-table tbody tr:hover td {
+  background: #f9fcff;
+}
+
+.users-table th:first-child,
+.users-table td:first-child {
+  width: 72px;
+  min-width: 72px;
+  white-space: nowrap;
+}
+
+.users-table th:last-child,
+.users-table td:last-child {
+  width: 120px;
+  min-width: 120px;
+  white-space: nowrap;
 }
 
 .empty-message {
-  padding: 40px;
-  text-align: center;
+  padding: 24px;
+  text-align: center !important;
   color: #777;
 }
 
-.user-item {
-  display: flex;
-  gap: 14px;
-  padding: 16px 0;
-  border-bottom: 1px solid #ddd;
-}
-
-.user-item:last-child {
-  border-bottom: none;
-}
-
-.user-number {
-  font-weight: 600;
-}
-
-.user-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.user-info p {
-  margin: 0;
-  margin-bottom: 10px;
-  text-align: left;
-}
-
 .action-buttons {
-  margin-left: auto;
   display: flex;
   gap: 10px;
 }
@@ -91,3 +144,13 @@
   background-color: #c0392b;
 }
 
+@media (max-width: 768px) {
+  .users-actions {
+    justify-content: stretch;
+  }
+
+  .download-user-btn,
+  .add-btn {
+    width: 100%;
+  }
+}

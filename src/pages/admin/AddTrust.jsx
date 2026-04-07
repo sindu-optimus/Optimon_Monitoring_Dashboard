@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import * as XLSX from "xlsx";
 import TrustForm from "../../components/TrustForm";
 import { getTrusts, deleteTrust } from "../../api/trustService";
 import "./AddTrust.css";
@@ -43,6 +44,32 @@ export default function AddTrust() {
     }
   };
 
+  const downloadExcelFile = () => {
+    if (!trusts.length) return;
+
+    const workbookRows = [
+      ["S.No", "Trust Name", "Description", "Status"],
+      ...trusts.map((trust, index) => [
+        index + 1,
+        trust.name || "-",
+        trust.description || "-",
+        trust.isEnabled ? "YES" : "NO",
+      ]),
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(workbookRows);
+    worksheet["!cols"] = [
+      { wch: 8 },
+      { wch: 24 },
+      { wch: 42 },
+      { wch: 12 },
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Trusts");
+    XLSX.writeFile(workbook, "trusts-list.xlsx");
+  };
+
   if (showForm) {
     return (
       <TrustForm
@@ -64,6 +91,16 @@ export default function AddTrust() {
 
       <div className="trustForm-actions">
         <button
+          type="button"
+          className="download-trust-btn"
+          onClick={downloadExcelFile}
+          disabled={trusts.length === 0}
+        >
+          <i className="ri-file-excel-2-line" aria-hidden="true"></i>
+          Download Excel
+        </button>
+
+        <button
           className="add-btn"
           onClick={() => {
             setEditingTrust(null);
@@ -74,42 +111,56 @@ export default function AddTrust() {
         </button>
       </div>
 
-      <div className="trust-box">
-        {trusts.length === 0 && (
-          <p style={{ textAlign: "center", color: "#777" }}>
-            No trusts found
-          </p>
-        )}
+      <div className="trust-table-wrap">
+        <table className="trust-table">
+          <thead>
+            <tr>
+              <th>S.No</th>
+              <th>Trust Name</th>
+              <th>Description</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
 
-        {trusts.map((trust, index) => (
-          <div key={trust.id} className="trust-item">
-            <div className="trust-number">{index + 1}.</div>
+          <tbody>
+            {trusts.length === 0 ? (
+              <tr>
+                <td colSpan="5" className="trust-empty">
+                  No trusts found
+                </td>
+              </tr>
+            ) : (
+              trusts.map((trust, index) => (
+                <tr key={trust.id}>
+                  <td>{index + 1}</td>
+                  <td>{trust.name}</td>
+                  <td>{trust.description || "-"}</td>
+                  <td>{trust.isEnabled ? "YES" : "NO"}</td>
+                  <td>
+                    <div className="trust-action-buttons">
+                      <button
+                        className="edit-btn"
+                        onClick={() => handleEdit(trust)}
+                        title="Edit Trust"
+                      >
+                        <i className="ri-pencil-line"></i>
+                      </button>
 
-            <div className="trust-info">
-              <p><strong>Trust Name:</strong> {trust.name}</p>
-              <p><strong>Description:</strong> {trust.description || "-"}</p>
-              <p><strong>Status:</strong> {trust.isEnabled ? "YES" : "NO"}</p>
-            </div>
-
-            <div className="trust-action-buttons">
-              <button
-                className="edit-btn"
-                onClick={() => handleEdit(trust)}
-                title="Edit Trust"
-              >
-                <i className="ri-pencil-line"></i>
-              </button>
-
-              <button
-                className="delete-btn"
-                onClick={() => handleDelete(trust.id)}
-                title="Delete Trust"
-              >
-                <i className="ri-delete-bin-6-line"></i>
-              </button>
-            </div>
-          </div>
-        ))}
+                      <button
+                        className="delete-btn"
+                        onClick={() => handleDelete(trust.id)}
+                        title="Delete Trust"
+                      >
+                        <i className="ri-delete-bin-6-line"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

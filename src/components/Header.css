@@ -71,7 +71,7 @@
 }
 
 .rotate {
-  animation: spin 2s linear infinite;
+  animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
@@ -237,6 +237,14 @@
   border-radius: 5px;
 }
 
+.settings input:disabled,
+.settings input.input-disabled {
+  background-color: #f3f4f6;
+  color: #6b7280;
+  border-color: #d1d5db;
+  cursor: not-allowed;
+}
+
 .settings select {
   width: 100%;
   padding: 7px 5px;
@@ -263,6 +271,10 @@
     margin-top: -2px;
     margin-bottom: 8px;
     text-align: left;
+}
+
+.info-text-muted {
+  color: #9ca3af;
 }
 
 .settings-buttons {

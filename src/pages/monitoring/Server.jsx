@@ -114,6 +114,7 @@ export default function Server({
 
         return {
           id: q.id,
+          trustId: q.trustId,
           name: q.queueName ?? "Unknown",
           pending,
           critical,

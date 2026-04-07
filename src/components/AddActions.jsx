@@ -6,6 +6,10 @@ import {
   updateSupportIssue,
 } from "../api/supportService";
 import {
+  extractInterfaceNamesFromMetrics,
+  getMetricDetails,
+} from "../api/metricsService";
+import {
   faBold,
   faItalic,
   faUnderline,
@@ -16,6 +20,14 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "./AddActions.css";
 
 const EMPTY_INITIAL = {};
+const REASON_OPTIONS = [
+  "Planned Change Issue",
+  "Upgrade Concern",
+  "System Change Issue",
+  "Interface Issue",
+  "Planned Upgrade",
+  "Others",
+];
 
 const AddActions = ({ initial = EMPTY_INITIAL, onSuccess, onCancel }) => {
   const location = useLocation();
@@ -23,10 +35,13 @@ const AddActions = ({ initial = EMPTY_INITIAL, onSuccess, onCancel }) => {
 
   const editorRef = useRef(null);
 
-  const [issue, setIssue] = useState("");
+  const [selectedReason, setSelectedReason] = useState("");
+  const [customReason, setCustomReason] = useState("");
   const [trustOptions, setTrustOptions] = useState([]);
   const [selectedTrustId, setSelectedTrustId] = useState("");
   const [interfaceName, setInterfaceName] = useState("");
+  const [interfaceOptions, setInterfaceOptions] = useState([]);
+  const [interfaceLoading, setInterfaceLoading] = useState(false);
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -57,6 +72,11 @@ const AddActions = ({ initial = EMPTY_INITIAL, onSuccess, onCancel }) => {
   }, []);
 
   useEffect(() => {
+    const existingReason = (initial?.description1 ?? initial?.issue ?? "").trim();
+    const matchesPresetReason = REASON_OPTIONS.find(
+      (option) => option !== "Others" && option === existingReason
+    );
+
     setSelectedTrustId(
       initial?.trust_id?.toString() ??
         initial?.trustId?.toString() ??
@@ -68,13 +88,80 @@ const AddActions = ({ initial = EMPTY_INITIAL, onSuccess, onCancel }) => {
         routeInterfaceName ??
         ""
     );
-    setIssue(initial?.description1 ?? initial?.issue ?? "");
-
+    setSelectedReason(
+      matchesPresetReason || (existingReason ? "Others" : "")
+    );
+    setCustomReason(matchesPresetReason ? "" : existingReason);
     if (editorRef.current) {
       editorRef.current.innerHTML =
         initial?.description2 ?? initial?.action ?? "";
     }
   }, [initial, routeInterfaceName]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadInterfaceOptions = async () => {
+      if (!selectedTrustId) {
+        setInterfaceOptions(
+          routeInterfaceName ? [routeInterfaceName] : []
+        );
+        setInterfaceLoading(false);
+        return;
+      }
+
+      try {
+        setInterfaceLoading(true);
+        const metricsData = await getMetricDetails(selectedTrustId);
+        if (!isActive) return;
+
+        const fetchedInterfaceNames =
+          extractInterfaceNamesFromMetrics(metricsData);
+        const combinedOptions = Array.from(
+          new Set(
+            [
+              ...fetchedInterfaceNames,
+              routeInterfaceName,
+              initial?.interface_name,
+              initial?.interfaceName,
+            ].filter(Boolean)
+          )
+        ).sort((a, b) => a.localeCompare(b));
+
+        setInterfaceOptions(combinedOptions);
+      } catch (fetchError) {
+        if (!isActive) return;
+        console.error("Error fetching interface names:", fetchError);
+        setInterfaceOptions(
+          [routeInterfaceName, initial?.interface_name, initial?.interfaceName]
+            .filter(Boolean)
+            .filter((value, index, arr) => arr.indexOf(value) === index)
+        );
+      } finally {
+        if (isActive) {
+          setInterfaceLoading(false);
+        }
+      }
+    };
+
+    loadInterfaceOptions();
+
+    return () => {
+      isActive = false;
+    };
+  }, [
+    initial?.interfaceName,
+    initial?.interface_name,
+    routeInterfaceName,
+    selectedTrustId,
+  ]);
+
+  useEffect(() => {
+    if (!interfaceName) return;
+    if (interfaceOptions.includes(interfaceName)) return;
+
+    setInterfaceName("");
+  }, [interfaceName, interfaceOptions]);
 
   const resetMessages = () => {
     setError("");
@@ -82,6 +169,8 @@ const AddActions = ({ initial = EMPTY_INITIAL, onSuccess, onCancel }) => {
   };
 
   const getActionText = () => editorRef.current?.innerText.trim() || "";
+  const getReasonValue = () =>
+    selectedReason === "Others" ? customReason.trim() : selectedReason.trim();
 
   const validateUpTo = (field) => {
     const err = {};
@@ -94,7 +183,10 @@ const AddActions = ({ initial = EMPTY_INITIAL, onSuccess, onCancel }) => {
     }
     if (field === "interfaceName") return setErrors(err);
 
-    if (!issue.trim()) err.issue = "Describe the issue is required";
+    if (!getReasonValue()) err.issue = "Describe the reason is required";
+    if (selectedReason === "Others" && customReason.trim().length > 20) {
+      err.issue = "Other reason must be 20 characters or less";
+    }
     if (field === "issue") return setErrors(err);
 
     if (!getActionText()) {
@@ -112,7 +204,10 @@ const AddActions = ({ initial = EMPTY_INITIAL, onSuccess, onCancel }) => {
     if (!interfaceName.trim()) {
       err.interfaceName = "Interface name is required";
     }
-    if (!issue.trim()) err.issue = "Describe the issue is required";
+    if (!getReasonValue()) err.issue = "Describe the reason is required";
+    if (selectedReason === "Others" && customReason.trim().length > 20) {
+      err.issue = "Other reason must be 20 characters or less";
+    }
     if (!getActionText()) {
       err.action = "Proposed action is required";
     }
@@ -124,13 +219,15 @@ const AddActions = ({ initial = EMPTY_INITIAL, onSuccess, onCancel }) => {
   const isFormValid =
     selectedTrustId &&
     interfaceName.trim() &&
-    issue.trim() &&
+    getReasonValue() &&
+    (selectedReason !== "Others" || customReason.trim().length <= 20) &&
     getActionText();
 
   const resetForm = () => {
     setSelectedTrustId("");
     setInterfaceName("");
-    setIssue("");
+    setSelectedReason("");
+    setCustomReason("");
     setErrors({});
     if (editorRef.current) {
       editorRef.current.innerHTML = "";
@@ -145,8 +242,10 @@ const AddActions = ({ initial = EMPTY_INITIAL, onSuccess, onCancel }) => {
 
     setLoading(true);
 
+    const reasonValue = getReasonValue();
+
     const basePayload = {
-      description1: issue.trim(),
+      description1: reasonValue,
       description2: editorRef.current.innerHTML,
       interface_name: interfaceName.trim(),
       trust_id: Number(selectedTrustId),
@@ -167,7 +266,7 @@ const AddActions = ({ initial = EMPTY_INITIAL, onSuccess, onCancel }) => {
             initial?.updated_at ??
             initial?.updatedAt ??
             null,
-          description1: issue.trim(),
+          description1: reasonValue,
           description2: editorRef.current.innerHTML,
           finalConclusion:
             initial?.finalConclusion ??
@@ -260,11 +359,9 @@ const AddActions = ({ initial = EMPTY_INITIAL, onSuccess, onCancel }) => {
 
         <div className="form-group">
           <label>Interface Name*</label>
-          <input
-            type="text"
+          <select
             value={interfaceName}
-            className={errors.interfaceName ? "input-invalid" : ""}
-            placeholder="Enter interface name"
+            className={`form-select ${errors.interfaceName ? "input-invalid" : ""}`}
             onFocus={() => validateUpTo("interfaceName")}
             onChange={(e) => {
               setInterfaceName(e.target.value);
@@ -272,27 +369,63 @@ const AddActions = ({ initial = EMPTY_INITIAL, onSuccess, onCancel }) => {
                 setErrors((prev) => ({ ...prev, interfaceName: null }));
               }
             }}
-          />
+            disabled={interfaceLoading || interfaceOptions.length === 0}
+          >
+            <option value="">
+              {interfaceLoading
+                ? "Loading interface names..."
+                : "Select interface name"}
+            </option>
+            {interfaceOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
           {errors.interfaceName && (
             <p className="input-error">{errors.interfaceName}</p>
           )}
         </div>
 
         <div className="form-group">
-          <label>Describe the Issue*</label>
-          <textarea
-            value={issue}
-            rows="2"
-            placeholder="Enter the issue"
-            className={errors.issue ? "input-invalid" : ""}
+          <label>Reason*</label>
+          <select
+            value={selectedReason}
+            className={`form-select ${errors.issue ? "input-invalid" : ""}`}
             onFocus={() => validateUpTo("issue")}
             onChange={(e) => {
-              setIssue(e.target.value);
+              const nextReason = e.target.value;
+              setSelectedReason(nextReason);
               if (errors.issue) {
                 setErrors((prev) => ({ ...prev, issue: null }));
               }
             }}
-          />
+          >
+            <option value="">Select reason</option>
+            {REASON_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+
+          {selectedReason === "Others" && (
+            <input
+              type="text"
+              value={customReason}
+              maxLength="20"
+              placeholder="Enter other reason"
+              className={errors.issue ? "input-invalid" : ""}
+              onFocus={() => validateUpTo("issue")}
+              onChange={(e) => {
+                const nextCustomReason = e.target.value.slice(0, 20);
+                setCustomReason(nextCustomReason);
+                if (errors.issue) {
+                  setErrors((prev) => ({ ...prev, issue: null }));
+                }
+              }}
+            />
+          )}
           {errors.issue && <p className="input-error">{errors.issue}</p>}
         </div>
 

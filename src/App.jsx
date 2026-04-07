@@ -23,6 +23,7 @@ import AddUser from "./pages/admin/AddUser";
 import Profile from "./pages/admin/Profile";
 import SummaryInterfaces from "./pages/admin/SummaryInterfaces";
 import SettingsPage from "./pages/admin/SettingsPage";
+import CriticalInterfaces from "./pages/admin/CriticalInterfaces";
 
 import MessageBank from "./pages/shared/MessageBank";
 import SupportActions from "./pages/shared/SupportActions";
@@ -30,6 +31,7 @@ import SendMail from "./pages/shared/SendMail";
 import FAQ from "./pages/shared/FAQ";
 import MessageTrend from "./pages/shared/MessageTrend";
 import { getTrustMeta } from "./utils/trustData";
+import { getMetricDetails } from "./api/metricsService";
 
 import "./App.css";
 
@@ -118,14 +120,7 @@ export default function App() {
 
   async function fetchTrustMetrics(trustId) {
     try {
-      const res = await fetch(
-        `http://18.168.87.76:8084/getMetricDetails/?trustId=${trustId}`
-        // `http://18.170.60.107:8085/getMetricDetails/?trustId=${trustId}`
-
-      );
-      if (!res.ok) throw new Error();
-
-      const data = await res.json();
+      const data = await getMetricDetails(trustId);
       return data?.inboundDetails || data?.queueDetails ? data : null;
     } catch {
       return null;
@@ -134,7 +129,8 @@ export default function App() {
 
   /* ===================== PROGRESSIVE FETCH ===================== */
   async function fetchTrustsProgressively(ids, append = false) {
-    ids.forEach(async (id) => {
+    await Promise.all(
+      ids.map(async (id) => {
       const data = await fetchTrustMetrics(id);
       if (!data) return;
 
@@ -163,7 +159,8 @@ export default function App() {
 
         return sortTrustDataById(updated);
       });
-    });
+      })
+    );
   }
 
   /* ===================== INITIAL LOAD ===================== */
@@ -360,6 +357,15 @@ export default function App() {
               />
             }
           />
+          <Route
+            path="support-actions/:issueId"
+            element={
+              <SupportActions
+                isAdminUser={isAdminUser}
+                userProfile={loggedInUser}
+              />
+            }
+          />
           <Route path="send-email" element={<SendMail />} />
           <Route path="faqs" element={<FAQ />} />
           <Route
@@ -391,13 +397,13 @@ export default function App() {
           path="/admin"
           element={
             isLoggedIn ? (
-              isAdminUser ? <AdminLayout /> : <Navigate to="/action" replace />
+              <AdminLayout isAdminUser={isAdminUser} />
             ) : (
               <Navigate to="/login" />
             )
           }
         >
-          <Route index element={<Navigate to="profile" replace />} />
+          <Route index element={<Navigate to="support-actions" replace />} />
           <Route
             path="profile"
             element={
@@ -407,7 +413,10 @@ export default function App() {
               />
             }
           />
-          <Route path="add-trusts" element={<AddTrust />} />
+          <Route
+            path="add-trusts"
+            element={isAdminUser ? <AddTrust /> : <Navigate to="/admin/support-actions" replace />}
+          />
           <Route
             path="support-actions"
             element={
@@ -417,10 +426,35 @@ export default function App() {
               />
             }
           />
+          <Route
+            path="support-actions/:issueId"
+            element={
+              <SupportActions
+                isAdminUser={isAdminUser}
+                userProfile={loggedInUser}
+              />
+            }
+          />
+          <Route
+            path="critical-interfaces"
+            element={<CriticalInterfaces isAdminUser={isAdminUser} />}
+          />
           <Route path="send-email" element={<SendMail />} />
           <Route path="faqs" element={<FAQ />} />
-          <Route path="add-users" element={<AddUser />} />
-          <Route path="summary-interfaces" element={<SummaryInterfaces />} />
+          <Route
+            path="add-users"
+            element={isAdminUser ? <AddUser /> : <Navigate to="/admin/support-actions" replace />}
+          />
+          <Route
+            path="summary-interfaces"
+            element={
+              isAdminUser ? (
+                <SummaryInterfaces />
+              ) : (
+                <Navigate to="/admin/support-actions" replace />
+              )
+            }
+          />
           <Route
             path="settings"
             element={
