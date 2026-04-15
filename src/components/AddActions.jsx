@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { getTrusts } from "../api/trustService";
+import { filterTrustsByAccess } from "../utils/trustAccess";
 import {
   createSupportIssue,
   updateSupportIssue,
@@ -29,7 +30,12 @@ const REASON_OPTIONS = [
   "Others",
 ];
 
-const AddActions = ({ initial = EMPTY_INITIAL, onSuccess, onCancel }) => {
+const AddActions = ({
+  initial = EMPTY_INITIAL,
+  onSuccess,
+  onCancel,
+  userProfile = null,
+}) => {
   const location = useLocation();
   const { interfaceName: routeInterfaceName = "" } = location.state || {};
 
@@ -58,7 +64,7 @@ const AddActions = ({ initial = EMPTY_INITIAL, onSuccess, onCancel }) => {
       try {
         const res = await getTrusts();
         if (!isActive) return;
-        setTrustOptions(res.data || []);
+        setTrustOptions(filterTrustsByAccess(res.data || [], userProfile));
       } catch (fetchError) {
         console.error("Error fetching trusts:", fetchError);
       }
@@ -69,7 +75,7 @@ const AddActions = ({ initial = EMPTY_INITIAL, onSuccess, onCancel }) => {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [userProfile]);
 
   useEffect(() => {
     const existingReason = (initial?.description1 ?? initial?.issue ?? "").trim();
@@ -97,6 +103,17 @@ const AddActions = ({ initial = EMPTY_INITIAL, onSuccess, onCancel }) => {
         initial?.description2 ?? initial?.action ?? "";
     }
   }, [initial, routeInterfaceName]);
+
+  useEffect(() => {
+    if (trustOptions.length === 0) return;
+
+    if (
+      selectedTrustId &&
+      !trustOptions.some((trust) => String(trust.id) === String(selectedTrustId))
+    ) {
+      setSelectedTrustId("");
+    }
+  }, [selectedTrustId, trustOptions]);
 
   useEffect(() => {
     let isActive = true;

@@ -136,7 +136,7 @@ export default function AddTrust() {
                   <td>{index + 1}</td>
                   <td>{trust.name}</td>
                   <td>{trust.description || "-"}</td>
-                  <td>{trust.isEnabled ? "YES" : "NO"}</td>
+                  <td>{trust.isEnabled ? "Active" : "Inactive"}</td>
                   <td>
                     <div className="trust-action-buttons">
                       <button

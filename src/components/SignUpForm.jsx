@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { getTrusts } from "../api/trustService";
 import { createUser, updateUser } from "../api/userService";
+import { filterTrustsByAccess } from "../utils/trustAccess";
 import "./SignUpForm.css";
 
 const USERNAME_REGEX = /^[A-Za-z0-9-]+$/;
@@ -16,7 +17,12 @@ const getTrustLabels = (trusts = []) =>
     })
     .filter(Boolean);
 
-export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
+export default function SignUpForm({
+  onCancel,
+  onSuccess,
+  initial = {},
+  availableTrusts = null,
+}) {
   const ROLES = [
     { id: 1, label: "Admin" },
     { id: 2, label: "Operator" },
@@ -57,13 +63,16 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
 
     const fetchTrustOptions = async () => {
       try {
-        const res = await getTrusts();
         if (!isActive) return;
 
+        const trustsSource = Array.isArray(availableTrusts)
+          ? availableTrusts
+          : filterTrustsByAccess((await getTrusts()).data || [], null);
+
         setTrustOptions(
-          (res.data || []).map((trust) => ({
+          trustsSource.map((trust) => ({
             id: trust.id,
-            label: trust.name,
+            label: trust.label ?? trust.name,
           }))
         );
       } catch (error) {
@@ -76,7 +85,7 @@ export default function SignUpForm({ onCancel, onSuccess, initial = {} }) {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [availableTrusts]);
 
   useEffect(() => {
     if (!isTrustDropdownOpen) return;

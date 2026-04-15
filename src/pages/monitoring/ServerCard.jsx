@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getSupportIssues } from "../../api/supportService";
 import trendUpImg from "../../assets/trend-up.gif";
 import trendDownImg from "../../assets/trend-down.gif";
 import "./ServerCard.css";
@@ -13,6 +12,7 @@ export default function ServerCard({
   bgColor = "#fff",
   lastUpdated = null,
   lastUpdatedText = "",
+  supportIssues = [],
 }) {
   const navigate = useNavigate();
 
@@ -31,8 +31,6 @@ export default function ServerCard({
     interfaceName: "",
     items: [],
   });
-  const [supportIssues, setSupportIssues] = useState([]);
-
   /* ================= CHECK BACKEND "NO PENDING" ================= */
 
   const hasBackendNoPending = useMemo(() => {
@@ -124,48 +122,6 @@ export default function ServerCard({
       .toLowerCase()}`;
   const getPendingCountValue = (pendingRaw) =>
     Number(String(pendingRaw ?? "").replace(/[^\d]/g, "")) || 0;
-
-  useEffect(() => {
-    let isActive = true;
-
-    const loadSupportIssues = async () => {
-      try {
-        const [activeRes, deletedRes] = await Promise.all([
-          getSupportIssues(false),
-          getSupportIssues(true),
-        ]);
-
-        if (!isActive) return;
-
-        const combinedItems = [
-          ...(activeRes.data || []),
-          ...(deletedRes.data || []),
-        ];
-
-        const uniqueItems = Array.from(
-          new Map(
-            combinedItems.map((item, index) => [
-              getItemId(item) ?? `idx-${index}`,
-              item,
-            ])
-          ).values()
-        );
-
-        setSupportIssues(uniqueItems);
-      } catch (loadError) {
-        if (!isActive) return;
-        console.error("Error loading support actions:", loadError);
-        setSupportIssues([]);
-      }
-    };
-
-    loadSupportIssues();
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
-
   const supportIssuesByQueue = useMemo(() => {
     return supportIssues.reduce((acc, item) => {
       if (!isItemActive(item)) {
@@ -365,7 +321,7 @@ export default function ServerCard({
                               : "#4CAF50",
                         }}
                       >
-                        <td>
+                        <td className="pending-count-column">
                           <span
                             className="ellipsis queue-tooltip-target"
                             onMouseEnter={(e) =>
@@ -385,9 +341,17 @@ export default function ServerCard({
                         <td>
                           <div className="pending-count-cell">
                             <div className="pending-count-main">
-                              <span className="pending-count-value">
-                                {pendingDisplay.countText}
-                              </span>
+                              <div className="pending-count-text">
+                                <span className="pending-count-value">
+                                  {pendingDisplay.countText}
+                                </span>
+
+                                {pendingDisplay.reasonText && (
+                                  <span className="pending-count-reason">
+                                    , {pendingDisplay.reasonText}
+                                  </span>
+                                )}
+                              </div>
 
                               {queue.trend?.direction === "up" && (
                                 <img

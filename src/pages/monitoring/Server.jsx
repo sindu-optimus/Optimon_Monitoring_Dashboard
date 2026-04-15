@@ -10,6 +10,7 @@ export default function Server({
   queue = [],
   queueWarningLimit = 100,
   serviceDelayLimit = 100,
+  supportIssues = [],
   onHoverStart,
   onHoverEnd,
 }) {
@@ -197,6 +198,7 @@ export default function Server({
         noPendingServices={hasBackendNoPendingServices}
         lastUpdated={lastUpdated}
         lastUpdatedText={lastUpdatedText}
+        supportIssues={supportIssues}
       />
     </div>
   );

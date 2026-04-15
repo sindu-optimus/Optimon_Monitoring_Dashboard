@@ -24,7 +24,7 @@ export default function Header({
   onServiceDelayLimitChange,
   selectedTrustIds,
   onTrustChange,
-  trustData,
+  trustList = [],
   onRefresh,
   onLogout,
 }) {
@@ -70,38 +70,30 @@ export default function Header({
   };
 
   /* ================= TRUST LIST ================= */
-  // const trustList = trustData || [];
+  const headerTrustOptions = useMemo(
+    () =>
+      trustList
+        .map((trust) => {
+          const trustId = Number(trust?.trustId ?? trust?.id);
 
-  const trustList = useMemo(() => {
-    const map = new Map();
+          if (!Number.isFinite(trustId)) {
+            return null;
+          }
 
-    trustData.forEach((item) => {
-      const inbound = item?.inboundDetails?.[0];
-      if (inbound?.trustId) {
-        map.set(
-          inbound.trustId,
-          inbound.trustName || `Trust ${inbound.trustId}`
-        );
-      }
-    });
+          return {
+            trustId,
+            trustName:
+              trust?.trustName || trust?.name || `Trust ${trustId}`,
+          };
+        })
+        .filter(Boolean),
+    [trustList]
+  );
 
-    return Array.from(map.entries()).map(([trustId, trustName]) => ({
-      trustId,
-      trustName,
-    }));
-  }, [trustData]);
-
-  /* HEADER TRUSTS (FIRST 3 + LAST) */
+  /* HEADER TRUSTS */
   const headerTrustList = useMemo(() => {
-    if (trustList.length <= 4) {
-      return trustList;
-    }
-
-    const firstThree = trustList.slice(0, 3);
-    const lastOne = trustList.slice(-1);
-
-    return [...firstThree, ...lastOne];
-  }, [trustList]);
+    return headerTrustOptions;
+  }, [headerTrustOptions]);
 
   const toggleDropdown = () => setIsDropdownOpen((s) => !s);
   const toggleSettings = () => setIsSettingsOpen((s) => !s);
@@ -311,7 +303,7 @@ export default function Header({
                 maxGridCount={maxGridCount}
                 selectedTrustIds={selectedTrustIds}
                 onTrustChange={onTrustChange}
-                trustList={trustList}
+                trustList={headerTrustOptions}
                 onRefreshTimeChange={onRefreshTimeChange}
                 onGridCountChange={onGridCountChange}
                 onQueueWarningLimitChange={onQueueWarningLimitChange}

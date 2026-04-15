@@ -64,20 +64,26 @@ const createInitialForm = (initial, defaultTrustId, defaultView) => ({
     "name",
   ]),
   weekDayInside: getFirstDefinedValue(initial?.rawItem, [
+    "dayIdleTime",
     "idleTimeWeekDayInsideBusinessHours",
     "weekdayInsideBusinessHours",
     "weekDayInsideBusinessHours",
   ]),
   weekDayOutside: getFirstDefinedValue(initial?.rawItem, [
+    "nightIdleTime",
     "weekDayOutsideBusinessHours",
     "weekdayOutsideBusinessHours",
     "outsideBusinessHoursWeekDay",
   ]),
   weekendInside: getFirstDefinedValue(initial?.rawItem, [
+    "weDayIdleTime",
+    "weekendDayIdleTime",
     "idleTimeWeekendInsideBusinessHours",
     "weekendInsideBusinessHours",
   ]),
   weekendOutside: getFirstDefinedValue(initial?.rawItem, [
+    "weNightIdleTime",
+    "weekendNightIdleTime",
     "weekendOutsideBusinessHours",
     "outsideBusinessHoursWeekend",
   ]),
@@ -85,7 +91,9 @@ const createInitialForm = (initial, defaultTrustId, defaultView) => ({
     "isMondayIgnore",
     "mondayIgnore",
   ]),
+  deleted: getBooleanValue(initial?.rawItem, ["deleted", "isDeleted"], false),
   interfaceName: getFirstDefinedValue(initial?.rawItem, [
+    "endpointName",
     "queueName",
     "interfaceName",
     "interface_name",
@@ -120,6 +128,12 @@ export default function CriticalInterfaceForm({
 
   const isEditMode = Boolean(initial?.id);
   const isInbound = form.interfaceType === VIEW_OPTIONS.INBOUND;
+  const alertEnabled = Boolean(form.deleted);
+  const selectedTrust = trusts.find(
+    (trust) => String(trust.id) === String(form.trustId)
+  );
+  const selectedTrustName =
+    selectedTrust?.name || initial?.rawItem?.trustName || "";
   const inboundValidationOrder = [
     "trustId",
     "interfaceType",
@@ -293,6 +307,10 @@ export default function CriticalInterfaceForm({
     return Boolean(form.interfaceName.trim());
   }, [form, isInbound]);
 
+  const toggleAlertStatus = () => {
+    handleChange("deleted", !alertEnabled);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -314,25 +332,29 @@ export default function CriticalInterfaceForm({
       ? {
           ...(initial?.rawItem || {}),
           serviceName: form.serviceName.trim(),
-          interfaceName: form.serviceName.trim(),
-          idleTimeWeekDayInsideBusinessHours: form.weekDayInside.trim(),
-          weekDayOutsideBusinessHours: form.weekDayOutside.trim(),
-          idleTimeWeekendInsideBusinessHours: form.weekendInside.trim(),
-          weekendOutsideBusinessHours: form.weekendOutside.trim(),
-          isMondayIgnore: Boolean(form.isMondayIgnore),
           trustId,
+          trustName: selectedTrustName,
+          dayIdleTime: Number(form.weekDayInside.trim()),
+          nightIdleTime: Number(form.weekDayOutside.trim()),
+          weDayIdleTime: Number(form.weekendInside.trim()),
+          weNightIdleTime: Number(form.weekendOutside.trim()),
+          isMondayIgnore: Boolean(form.isMondayIgnore),
+          deleted: Boolean(form.deleted),
         }
       : {
           ...(initial?.rawItem || {}),
-          queueName: form.interfaceName.trim(),
+          endpointName: form.interfaceName.trim(),
           interfaceName: form.interfaceName.trim(),
+          deleted: Boolean(form.deleted),
           trustId,
+          trustName: selectedTrustName,
         };
 
     try {
       setLoading(true);
 
       if (isEditMode) {
+        console.log("Critical interface update payload:", payload);
         await updateCriticalInterface({
           trustId,
           interfaceType: form.interfaceType,
@@ -341,6 +363,7 @@ export default function CriticalInterfaceForm({
         });
         setSuccess("Critical interface updated successfully");
       } else {
+        console.log("Critical interface create payload:", payload);
         await createCriticalInterface({
           trustId,
           interfaceType: form.interfaceType,
@@ -349,7 +372,7 @@ export default function CriticalInterfaceForm({
         setSuccess("Critical interface created successfully");
       }
 
-      onSuccess?.();
+      onSuccess?.(form.interfaceType);
     } catch (submitError) {
       console.error("Critical interface save failed:", submitError);
       setError(submitError.message || "Failed to save critical interface");
@@ -436,7 +459,10 @@ export default function CriticalInterfaceForm({
               <div className="row">
                 <div className="col">
                   <label className="sub-label">
-                    Inside business hours (09:00 AM to 07:00 PM)
+                    Inside business hours{" "}
+                    <span className="time-highlight">
+                      (09:00 AM to 07:00 PM)
+                    </span>
                   </label>
                   <input
                     className={`form-input ${errors.weekDayInside ? "input-invalid" : ""}`}
@@ -453,7 +479,10 @@ export default function CriticalInterfaceForm({
 
                 <div className="col">
                   <label className="sub-label">
-                    Outside business hours (07:00 PM to 09:00 AM)
+                    Outside business hours{" "}
+                    <span className="time-highlight">
+                      (07:00 PM to 09:00 AM)
+                    </span>
                   </label>
                   <input
                     className={`form-input ${errors.weekDayOutside ? "input-invalid" : ""}`}
@@ -478,7 +507,10 @@ export default function CriticalInterfaceForm({
               <div className="row">
                 <div className="col">
                   <label className="sub-label">
-                    Inside business hours (09:00 AM to 07:00 PM)
+                    Inside business hours{" "}
+                    <span className="time-highlight">
+                      (09:00 AM to 07:00 PM)
+                    </span>
                   </label>
                   <input
                     className={`form-input ${errors.weekendInside ? "input-invalid" : ""}`}
@@ -495,7 +527,10 @@ export default function CriticalInterfaceForm({
 
                 <div className="col">
                   <label className="sub-label">
-                    Outside business hours (07:00 PM to 09:00 AM)
+                    Outside business hours{" "}
+                    <span className="time-highlight">
+                      (07:00 PM to 09:00 AM)
+                    </span>
                   </label>
                   <input
                     className={`form-input ${errors.weekendOutside ? "input-invalid" : ""}`}
@@ -512,22 +547,49 @@ export default function CriticalInterfaceForm({
               </div>
             </div>
 
-            <label className="form-label">Is Monday Ignore</label>
-            <div className="toggle-group">
-              <button
-                type="button"
-                className={`toggle-btn yes ${form.isMondayIgnore ? "active" : ""}`}
-                onClick={() => handleChange("isMondayIgnore", true)}
-              >
-                YES
-              </button>
-              <button
-                type="button"
-                className={`toggle-btn no ${!form.isMondayIgnore ? "active" : ""}`}
-                onClick={() => handleChange("isMondayIgnore", false)}
-              >
-                NO
-              </button>
+            <div className="row critical-form-switch-row">
+              <div className="col">
+                <label className="form-label">Ignore Monday</label>
+                <div className="toggle-group">
+                  <button
+                    type="button"
+                    className={`toggle-btn yes ${
+                      form.isMondayIgnore ? "active" : ""
+                    }`}
+                    onClick={() => handleChange("isMondayIgnore", true)}
+                  >
+                    YES
+                  </button>
+                  <button
+                    type="button"
+                    className={`toggle-btn no ${
+                      !form.isMondayIgnore ? "active" : ""
+                    }`}
+                    onClick={() => handleChange("isMondayIgnore", false)}
+                  >
+                    NO
+                  </button>
+                </div>
+              </div>
+
+              <div className="col">
+                <label className="form-label">Alert</label>
+                <button
+                  type="button"
+                  className={`critical-switch critical-form-alert-switch ${
+                    alertEnabled ? "enabled" : "disabled"
+                  }`}
+                  onClick={toggleAlertStatus}
+                  role="switch"
+                  aria-checked={alertEnabled}
+                  aria-label={alertEnabled ? "Disable alert" : "Enable alert"}
+                  title={alertEnabled ? "Disable alert" : "Enable alert"}
+                >
+                  <span className="critical-switch-track">
+                    <span className="critical-switch-thumb"></span>
+                  </span>
+                </button>
+              </div>
             </div>
           </>
         ) : (
@@ -544,6 +606,27 @@ export default function CriticalInterfaceForm({
             {errors.interfaceName && (
               <p className="input-error">{errors.interfaceName}</p>
             )}
+
+            <div className="row critical-form-switch-row">
+              <div className="col">
+                <label className="form-label">Alert</label>
+                <button
+                  type="button"
+                  className={`critical-switch critical-form-alert-switch ${
+                    alertEnabled ? "enabled" : "disabled"
+                  }`}
+                  onClick={toggleAlertStatus}
+                  role="switch"
+                  aria-checked={alertEnabled}
+                  aria-label={alertEnabled ? "Disable alert" : "Enable alert"}
+                  title={alertEnabled ? "Disable alert" : "Enable alert"}
+                >
+                  <span className="critical-switch-track">
+                    <span className="critical-switch-thumb"></span>
+                  </span>
+                </button>
+              </div>
+            </div>
           </>
         )}
 

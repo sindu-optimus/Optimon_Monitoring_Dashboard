@@ -2,15 +2,29 @@ import React, { useEffect, useMemo, useState } from "react";
 import CriticalInterfaceForm from "../../components/CriticalInterfaceForm";
 import {
   deleteCriticalInterface,
-  getMetricDetails,
+  updateAllCriticalInterfaceAlerts,
+  updateAllCriticalInboundReceiverAlerts,
+  getCriticalInterfaceById,
+  getCriticalInterfaces,
+  getCriticalInboundReceiverById,
+  getCriticalInboundReceivers,
+  updateCriticalInterfaceAlert,
+  updateCriticalInboundReceiverAlert,
+  updateCriticalInterface,
 } from "../../api/metricsService";
 import { getTrusts } from "../../api/trustService";
+import { filterTrustsByAccess } from "../../utils/trustAccess";
 import "./CriticalInterfaces.css";
 
-const ALERT_STORAGE_KEY = "critical-interface-alert-status";
 const VIEW_OPTIONS = {
   INBOUND: "INBOUND",
   OTHER: "OTHER",
+};
+
+const ALERT_FILTER_OPTIONS = {
+  ALL: "ALL",
+  ENABLED: "ENABLED",
+  DISABLED: "DISABLED",
 };
 
 const INBOUND_COLUMNS = [
@@ -24,6 +38,7 @@ const INBOUND_COLUMNS = [
     label:
       "Idle time: Weekday (Inside business hours 09:00 AM to 07:00 PM)",
     getters: [
+      "dayIdleTime",
       "idleTimeWeekDayInsideBusinessHours",
       "weekdayInsideBusinessHours",
       "weekDayInsideBusinessHours",
@@ -33,6 +48,7 @@ const INBOUND_COLUMNS = [
     key: "weekDayOutside",
     label: "Weekday (Outside Business 07:00 PM to 09:00 AM)",
     getters: [
+      "nightIdleTime",
       "weekDayOutsideBusinessHours",
       "weekdayOutsideBusinessHours",
       "outsideBusinessHoursWeekDay",
@@ -43,6 +59,8 @@ const INBOUND_COLUMNS = [
     label:
       "Idle time: Weekend (Inside business hours 09:00 AM to 07:00 PM)",
     getters: [
+      "weDayIdleTime",
+      "weekendDayIdleTime",
       "idleTimeWeekendInsideBusinessHours",
       "weekendInsideBusinessHours",
     ],
@@ -51,6 +69,8 @@ const INBOUND_COLUMNS = [
     key: "weekendOutside",
     label: "Weekend (Outside Business 07:00 PM to 09:00 AM)",
     getters: [
+      "weNightIdleTime",
+      "weekendNightIdleTime",
       "weekendOutsideBusinessHours",
       "outsideBusinessHoursWeekend",
     ],
@@ -73,48 +93,106 @@ const getFirstValue = (item, getters) => {
   return "-";
 };
 
-export default function CriticalInterfaces({ isAdminUser = false }) {
+const getBooleanValue = (item, getters, fallback = false) => {
+  for (const key of getters) {
+    const value = item?.[key];
+
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const normalizedValue = value.trim().toLowerCase();
+
+      if (["true", "yes", "1"].includes(normalizedValue)) {
+        return true;
+      }
+
+      if (["false", "no", "0"].includes(normalizedValue)) {
+        return false;
+      }
+    }
+  }
+
+  return fallback;
+};
+
+const unwrapApiData = (response) => response?.data ?? response;
+
+const getListFromApiResponse = (response) => {
+  const data = unwrapApiData(response);
+  const list =
+    data?.data ??
+    data?.content ??
+    data?.items ??
+    data?.criticalInterfaces ??
+    data?.criticalInterfaceList ??
+    data?.criticalInboundReceivers ??
+    data?.criticalInboundReceiverList ??
+    data;
+
+  return Array.isArray(list) ? list : [];
+};
+
+const getTrustIdFromItem = (item) =>
+  item?.trustId ?? item?.trust_id ?? item?.trust?.id ?? item?.trust?.trustId;
+
+const getTrustNameFromItem = (item) =>
+  item?.trustName ?? item?.trust_name ?? item?.trust?.name;
+
+const getInboundReceiverFromApiResponse = (response) => {
+  const data = unwrapApiData(response);
+  return data?.data ?? data?.criticalInboundReceiver ?? data;
+};
+
+const getCurrentViewFromType = (interfaceType) =>
+  String(interfaceType).toUpperCase() === VIEW_OPTIONS.INBOUND
+    ? VIEW_OPTIONS.INBOUND
+    : VIEW_OPTIONS.OTHER;
+
+const getAlertFilterValue = (alertFilter) => {
+  if (alertFilter === ALERT_FILTER_OPTIONS.ENABLED) {
+    return true;
+  }
+
+  if (alertFilter === ALERT_FILTER_OPTIONS.DISABLED) {
+    return false;
+  }
+
+  return undefined;
+};
+
+export default function CriticalInterfaces({
+  isAdminUser = false,
+  userProfile = null,
+}) {
   const [showForm, setShowForm] = useState(false);
   const [editingInterface, setEditingInterface] = useState(null);
   const [trusts, setTrusts] = useState([]);
   const [selectedTrustId, setSelectedTrustId] = useState("");
   const [selectedView, setSelectedView] = useState(VIEW_OPTIONS.INBOUND);
-  const [metricsData, setMetricsData] = useState(null);
+  const [selectedAlertFilter, setSelectedAlertFilter] = useState(
+    ALERT_FILTER_OPTIONS.ALL
+  );
+  const [criticalInterfaces, setCriticalInterfaces] = useState([]);
+  const [criticalInboundReceivers, setCriticalInboundReceivers] = useState([]);
   const [trustLoading, setTrustLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
+  const [loadedViews, setLoadedViews] = useState({
+    [VIEW_OPTIONS.INBOUND]: false,
+    [VIEW_OPTIONS.OTHER]: false,
+  });
   const [error, setError] = useState("");
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
-  const [alertStatuses, setAlertStatuses] = useState({});
   const [alertDialogRow, setAlertDialogRow] = useState(null);
   const [showBulkAlertDialog, setShowBulkAlertDialog] = useState(false);
 
-  useEffect(() => {
-    try {
-      const storedValue = window.localStorage.getItem(ALERT_STORAGE_KEY);
-      setAlertStatuses(storedValue ? JSON.parse(storedValue) : {});
-    } catch (storageError) {
-      console.error("Error reading alert status from storage:", storageError);
-      setAlertStatuses({});
-    }
-  }, []);
-
-  const buildAlertStorageId = (row) =>
-    [selectedTrustId, row.interfaceType, row.id].join("__");
-
   const isAlertEnabled = (row) =>
-    Boolean(alertStatuses[buildAlertStorageId(row)]);
-
-  const persistAlertStatuses = (nextStatuses) => {
-    setAlertStatuses(nextStatuses);
-    try {
-      window.localStorage.setItem(
-        ALERT_STORAGE_KEY,
-        JSON.stringify(nextStatuses)
-      );
-    } catch (storageError) {
-      console.error("Error saving alert status to storage:", storageError);
-    }
-  };
+    getBooleanValue(row?.rawItem, ["deleted", "isDeleted"], false);
+  const selectedTrust = trusts.find(
+    (trust) => String(trust.id) === String(selectedTrustId)
+  );
+  const selectedTrustName = selectedTrust?.name || "";
 
   useEffect(() => {
     let isActive = true;
@@ -125,7 +203,7 @@ export default function CriticalInterfaces({ isAdminUser = false }) {
         const response = await getTrusts();
         if (!isActive) return;
 
-        const trustList = Array.isArray(response.data) ? response.data : [];
+        const trustList = filterTrustsByAccess(response.data || [], userProfile);
         setTrusts(trustList);
 
         if (trustList.length > 0) {
@@ -147,37 +225,91 @@ export default function CriticalInterfaces({ isAdminUser = false }) {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [userProfile]);
 
-  const refreshMetrics = async (trustId = selectedTrustId) => {
+  useEffect(() => {
+    if (
+      selectedTrustId &&
+      !trusts.some((trust) => String(trust.id) === String(selectedTrustId))
+    ) {
+      setSelectedTrustId(trusts[0] ? String(trusts[0].id) : "");
+    }
+  }, [selectedTrustId, trusts]);
+
+  const refreshMetrics = async ({
+    trustId = selectedTrustId,
+    view = selectedView,
+    force = false,
+  } = {}) => {
     if (!trustId) {
-      setMetricsData(null);
+      return;
+    }
+
+    if (!force && loadedViews[view]) {
       return;
     }
 
     try {
       setTableLoading(true);
       setError("");
-      const response = await getMetricDetails(trustId);
-      setMetricsData(response || null);
+
+      if (view === VIEW_OPTIONS.INBOUND) {
+        const inboundResult = await getCriticalInboundReceivers({
+          trustId,
+          isDeleted: getAlertFilterValue(selectedAlertFilter),
+        });
+        setCriticalInboundReceivers(getListFromApiResponse(inboundResult));
+      } else {
+        const interfaceResult = await getCriticalInterfaces({
+          trustId,
+          isDeleted: getAlertFilterValue(selectedAlertFilter),
+        });
+        setCriticalInterfaces(getListFromApiResponse(interfaceResult));
+      }
+
+      setLoadedViews((prev) => ({
+        ...prev,
+        [view]: true,
+      }));
     } catch (loadError) {
       console.error("Error fetching critical interfaces:", loadError);
-      setMetricsData(null);
-      setError("Failed to load critical interface data.");
+      if (view === VIEW_OPTIONS.INBOUND) {
+        setCriticalInboundReceivers([]);
+        setError("Failed to load inbound components.");
+      } else {
+        setCriticalInterfaces([]);
+        setError("Failed to load other component data.");
+      }
     } finally {
       setTableLoading(false);
     }
   };
 
   useEffect(() => {
-    refreshMetrics(selectedTrustId);
-  }, [selectedTrustId]);
+    refreshMetrics({
+      force: true,
+    });
+  }, [selectedAlertFilter, selectedTrustId, selectedView]);
 
   const tableRows = useMemo(() => {
     if (selectedView === VIEW_OPTIONS.INBOUND) {
-      const inboundItems = Array.isArray(metricsData?.inboundDetails)
-        ? metricsData.inboundDetails
-        : [];
+      const selectedTrust = trusts.find(
+        (trust) => String(trust.id) === String(selectedTrustId)
+      );
+      const selectedTrustName = selectedTrust?.name;
+      const inboundItems = criticalInboundReceivers.filter((item) => {
+        const itemTrustId = getTrustIdFromItem(item);
+        if (itemTrustId !== undefined && itemTrustId !== null) {
+          return String(itemTrustId) === String(selectedTrustId);
+        }
+
+        const itemTrustName = getTrustNameFromItem(item);
+        if (itemTrustName && selectedTrustName) {
+          return String(itemTrustName) === String(selectedTrustName);
+        }
+
+        return true;
+      });
 
       return inboundItems.map((item, index) => ({
         id: item?.id ?? `inbound-${index}`,
@@ -194,9 +326,19 @@ export default function CriticalInterfaces({ isAdminUser = false }) {
       }));
     }
 
-    const queueItems = Array.isArray(metricsData?.queueDetails)
-      ? metricsData.queueDetails
-      : [];
+    const queueItems = criticalInterfaces.filter((item) => {
+      const itemTrustId = getTrustIdFromItem(item);
+      if (itemTrustId !== undefined && itemTrustId !== null) {
+        return String(itemTrustId) === String(selectedTrustId);
+      }
+
+      const itemTrustName = getTrustNameFromItem(item);
+      if (itemTrustName && selectedTrustName) {
+        return String(itemTrustName) === String(selectedTrustName);
+      }
+
+      return true;
+    });
 
     return queueItems.map((item, index) => ({
       id: item?.id ?? `queue-${index}`,
@@ -205,23 +347,82 @@ export default function CriticalInterfaces({ isAdminUser = false }) {
       rawItem: item,
       serialNo: index + 1,
       interfaceName: getFirstValue(item, [
-        "queueName",
+        "endpointName",
         "interfaceName",
         "interface_name",
+        "queueName",
+        "serviceName",
+        "name",
       ]),
     }));
-  }, [metricsData, selectedTrustId, selectedView]);
+  }, [
+    criticalInboundReceivers,
+    criticalInterfaces,
+    selectedTrustId,
+    selectedTrustName,
+    selectedView,
+    trusts,
+  ]);
+
+  const filteredTableRows = useMemo(() => {
+    const filteredRows = tableRows.filter((row) => {
+      if (selectedAlertFilter === ALERT_FILTER_OPTIONS.ENABLED) {
+        return isAlertEnabled(row);
+      }
+
+      if (selectedAlertFilter === ALERT_FILTER_OPTIONS.DISABLED) {
+        return !isAlertEnabled(row);
+      }
+
+      return true;
+    });
+
+    return filteredRows.map((row, index) => ({
+      ...row,
+      serialNo: index + 1,
+    }));
+  }, [selectedAlertFilter, tableRows]);
 
   const handleAddClick = () => {
     setEditingInterface(null);
     setShowForm(true);
   };
 
-  const handleEdit = (row) => {
+  const handleEdit = async (row) => {
     if (!isAdminUser) return;
 
-    setEditingInterface(row);
-    setShowForm(true);
+    try {
+      setTableLoading(true);
+      setError("");
+      const response =
+        row.interfaceType === VIEW_OPTIONS.INBOUND
+          ? await getCriticalInboundReceiverById(row.id)
+          : await getCriticalInterfaceById(row.id);
+      const item =
+        row.interfaceType === VIEW_OPTIONS.INBOUND
+          ? getInboundReceiverFromApiResponse(response)
+          : getInboundReceiverFromApiResponse(response);
+      const receiverTrustName = getTrustNameFromItem(item);
+      const receiverTrust = trusts.find(
+        (trust) => String(trust.name) === String(receiverTrustName)
+      );
+
+      setEditingInterface({
+        ...row,
+        trustId:
+          getTrustIdFromItem(item) ??
+          receiverTrust?.id ??
+          row.trustId ??
+          selectedTrustId,
+        rawItem: item || row.rawItem,
+      });
+      setShowForm(true);
+    } catch (editError) {
+      console.error("Error fetching critical inbound receiver:", editError);
+      setError(editError.message || "Unable to load inbound component.");
+    } finally {
+      setTableLoading(false);
+    }
   };
 
   const handleDelete = async (row) => {
@@ -244,7 +445,11 @@ export default function CriticalInterfaces({ isAdminUser = false }) {
         interfaceType: row.interfaceType,
         interfaceId: row.id,
       });
-      await refreshMetrics(selectedTrustId);
+      await refreshMetrics({
+        trustId: selectedTrustId,
+        view: row.interfaceType,
+        force: true,
+      });
     } catch (deleteError) {
       console.error("Error deleting critical interface:", deleteError);
       setError(deleteError.message || "Unable to delete interface.");
@@ -253,10 +458,16 @@ export default function CriticalInterfaces({ isAdminUser = false }) {
     }
   };
 
-  const handleFormSuccess = async () => {
+  const handleFormSuccess = async (savedInterfaceType) => {
+    const nextView = getCurrentViewFromType(savedInterfaceType || selectedView);
     setEditingInterface(null);
     setShowForm(false);
-    await refreshMetrics(selectedTrustId);
+    setSelectedView(nextView);
+    await refreshMetrics({
+      trustId: selectedTrustId,
+      view: nextView,
+      force: true,
+    });
   };
 
   const handleFormCancel = () => {
@@ -272,17 +483,35 @@ export default function CriticalInterfaces({ isAdminUser = false }) {
     setAlertDialogRow(null);
   };
 
-  const confirmAlertStatusChange = () => {
+  const confirmAlertStatusChange = async () => {
     if (!alertDialogRow) return;
 
-    const storageId = buildAlertStorageId(alertDialogRow);
-    const nextStatuses = {
-      ...alertStatuses,
-      [storageId]: !alertStatuses[storageId],
-    };
+    try {
+      setError("");
+      const nextDeletedStatus = !isAlertEnabled(alertDialogRow);
 
-    persistAlertStatuses(nextStatuses);
-    setAlertDialogRow(null);
+      if (alertDialogRow.interfaceType === VIEW_OPTIONS.INBOUND) {
+        await updateCriticalInboundReceiverAlert(
+          alertDialogRow.id,
+          nextDeletedStatus
+        );
+      } else {
+        await updateCriticalInterfaceAlert(
+          alertDialogRow.id,
+          nextDeletedStatus
+        );
+      }
+
+      setAlertDialogRow(null);
+      await refreshMetrics({
+        trustId: selectedTrustId,
+        view: alertDialogRow.interfaceType,
+        force: true,
+      });
+    } catch (alertError) {
+      console.error("Error updating alert status:", alertError);
+      setError(alertError.message || "Unable to update alert status.");
+    }
   };
 
   const enabledAlertCount = tableRows.filter((row) => isAlertEnabled(row)).length;
@@ -298,15 +527,27 @@ export default function CriticalInterfaces({ isAdminUser = false }) {
     setShowBulkAlertDialog(false);
   };
 
-  const confirmBulkAlertChange = () => {
-    const nextStatuses = { ...alertStatuses };
+  const confirmBulkAlertChange = async () => {
+    try {
+      setError("");
+      const nextDeletedStatus = !allAlertsEnabled;
 
-    tableRows.forEach((row) => {
-      nextStatuses[buildAlertStorageId(row)] = !allAlertsEnabled;
-    });
+      if (selectedView === VIEW_OPTIONS.INBOUND) {
+        await updateAllCriticalInboundReceiverAlerts(nextDeletedStatus);
+      } else {
+        await updateAllCriticalInterfaceAlerts(nextDeletedStatus);
+      }
 
-    persistAlertStatuses(nextStatuses);
-    setShowBulkAlertDialog(false);
+      setShowBulkAlertDialog(false);
+      await refreshMetrics({
+        trustId: selectedTrustId,
+        view: selectedView,
+        force: true,
+      });
+    } catch (alertError) {
+      console.error("Error updating alert statuses:", alertError);
+      setError(alertError.message || "Unable to update alert statuses.");
+    }
   };
 
   if (showForm) {
@@ -364,54 +605,80 @@ export default function CriticalInterfaces({ isAdminUser = false }) {
           </select>
         </div>
 
-        <div className="critical-bulk-alert-wrap">
-          <label className="critical-label" htmlFor="critical-bulk-alert-btn">
-            Turn off all alerts
+        <div className="critical-filter-group">
+          <label className="critical-label" htmlFor="critical-alert-filter">
+            Alert Filter
           </label>
-          <button
-            id="critical-bulk-alert-btn"
-            type="button"
-            className={`critical-bulk-alert-btn ${
-              allAlertsEnabled ? "enabled" : "disabled"
-            }`}
-            onClick={openBulkAlertDialog}
-            disabled={tableRows.length === 0}
-            title={
-              tableRows.length === 0
-                ? "No interfaces available"
-                : allAlertsEnabled
-                ? "Disable all alerts"
-                : "Enable all alerts"
-            }
+
+          <select
+            id="critical-alert-filter"
+            className="critical-select"
+            value={selectedAlertFilter}
+            onChange={(e) => setSelectedAlertFilter(e.target.value)}
           >
-            {allAlertsEnabled ? "Enabled" : "Disabled"}
-          </button>
+            <option value={ALERT_FILTER_OPTIONS.ALL}>All</option>
+            <option value={ALERT_FILTER_OPTIONS.ENABLED}>Enabled</option>
+            <option value={ALERT_FILTER_OPTIONS.DISABLED}>Disabled</option>
+          </select>
         </div>
 
-        <div
-          className="critical-toggle-wrap"
-          role="tablist"
-          aria-label="View toggle"
-        >
-          <button
-            type="button"
-            className={`critical-toggle-btn ${
-              selectedView === VIEW_OPTIONS.INBOUND ? "active" : ""
-            }`}
-            onClick={() => setSelectedView(VIEW_OPTIONS.INBOUND)}
-          >
-            Inbound components
-          </button>
+        <div className="critical-toolbar-right">
+          <div className="critical-bulk-alert-wrap">
+            <label className="critical-label" htmlFor="critical-bulk-alert-btn">
+              Turn off all alerts
+            </label>
+            <button
+              id="critical-bulk-alert-btn"
+              type="button"
+              className={`critical-switch critical-switch-lg ${
+                allAlertsEnabled ? "enabled" : "disabled"
+              }`}
+              onClick={openBulkAlertDialog}
+              disabled={tableRows.length === 0}
+              role="switch"
+              aria-checked={allAlertsEnabled}
+              aria-label={
+                allAlertsEnabled ? "Disable all alerts" : "Enable all alerts"
+              }
+              title={
+                tableRows.length === 0
+                  ? "No interfaces available"
+                  : allAlertsEnabled
+                  ? "Disable all alerts"
+                  : "Enable all alerts"
+              }
+            >
+              <span className="critical-switch-track">
+                <span className="critical-switch-thumb"></span>
+              </span>
+            </button>
+          </div>
 
-          <button
-            type="button"
-            className={`critical-toggle-btn ${
-              selectedView === VIEW_OPTIONS.OTHER ? "active" : ""
-            }`}
-            onClick={() => setSelectedView(VIEW_OPTIONS.OTHER)}
+          <div
+            className="critical-toggle-wrap"
+            role="tablist"
+            aria-label="View toggle"
           >
-            All other components
-          </button>
+            <button
+              type="button"
+              className={`critical-toggle-btn ${
+                selectedView === VIEW_OPTIONS.INBOUND ? "active" : ""
+              }`}
+              onClick={() => setSelectedView(VIEW_OPTIONS.INBOUND)}
+            >
+              Inbound components
+            </button>
+
+            <button
+              type="button"
+              className={`critical-toggle-btn ${
+                selectedView === VIEW_OPTIONS.OTHER ? "active" : ""
+              }`}
+              onClick={() => setSelectedView(VIEW_OPTIONS.OTHER)}
+            >
+              All other components
+            </button>
+          </div>
         </div>
       </div>
 
@@ -426,14 +693,14 @@ export default function CriticalInterfaces({ isAdminUser = false }) {
                 {INBOUND_COLUMNS.map((column) => (
                   <th key={column.key}>{column.label}</th>
                 ))}
-                <th>Alert</th>
+                <th className="critical-alert-col">Alert</th>
                 {isAdminUser && <th>Actions</th>}
               </tr>
             ) : (
               <tr>
                 <th>S.No</th>
                 <th>Interface Name</th>
-                <th>Alert</th>
+                <th className="critical-alert-col">Alert</th>
                 {isAdminUser && <th>Actions</th>}
               </tr>
             )}
@@ -459,7 +726,7 @@ export default function CriticalInterfaces({ isAdminUser = false }) {
               </tr>
             )}
 
-            {!tableLoading && tableRows.length === 0 && (
+            {!tableLoading && filteredTableRows.length === 0 && (
               <tr>
                 <td
                   colSpan={
@@ -479,7 +746,7 @@ export default function CriticalInterfaces({ isAdminUser = false }) {
             )}
 
             {!tableLoading &&
-              tableRows.map((row) =>
+              filteredTableRows.map((row) =>
                 selectedView === VIEW_OPTIONS.INBOUND ? (
                   <tr key={row.id}>
                     <td>{row.serialNo}</td>
@@ -489,20 +756,29 @@ export default function CriticalInterfaces({ isAdminUser = false }) {
                     <td>{row.weekendInside}</td>
                     <td>{row.weekendOutside}</td>
                     <td>{row.isMondayIgnore}</td>
-                    <td>
+                    <td className="critical-alert-cell">
                       <button
                         type="button"
-                        className={`critical-alert-btn ${
+                        className={`critical-switch ${
                           isAlertEnabled(row) ? "enabled" : "disabled"
                         }`}
                         onClick={() => openAlertDialog(row)}
+                        role="switch"
+                        aria-checked={isAlertEnabled(row)}
+                        aria-label={
+                          isAlertEnabled(row)
+                            ? "Disable alert"
+                            : "Enable alert"
+                        }
                         title={
                           isAlertEnabled(row)
                             ? "Disable alert"
                             : "Enable alert"
                         }
                       >
-                        {isAlertEnabled(row) ? "Enabled" : "Disabled"}
+                        <span className="critical-switch-track">
+                          <span className="critical-switch-thumb"></span>
+                        </span>
                       </button>
                     </td>
                     {isAdminUser && (
@@ -533,20 +809,29 @@ export default function CriticalInterfaces({ isAdminUser = false }) {
                   <tr key={row.id}>
                     <td>{row.serialNo}</td>
                     <td>{row.interfaceName}</td>
-                    <td>
+                    <td className="critical-alert-cell">
                       <button
                         type="button"
-                        className={`critical-alert-btn ${
+                        className={`critical-switch ${
                           isAlertEnabled(row) ? "enabled" : "disabled"
                         }`}
                         onClick={() => openAlertDialog(row)}
+                        role="switch"
+                        aria-checked={isAlertEnabled(row)}
+                        aria-label={
+                          isAlertEnabled(row)
+                            ? "Disable alert"
+                            : "Enable alert"
+                        }
                         title={
                           isAlertEnabled(row)
                             ? "Disable alert"
                             : "Enable alert"
                         }
                       >
-                        {isAlertEnabled(row) ? "Enabled" : "Disabled"}
+                        <span className="critical-switch-track">
+                          <span className="critical-switch-thumb"></span>
+                        </span>
                       </button>
                     </td>
                     {isAdminUser && (
