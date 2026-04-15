@@ -76,7 +76,7 @@
 }
 
 .content {
-    padding: 100px 30px;
+    padding: 90px 30px;
     width: 100%;
     box-sizing: border-box;
 }
@@ -89,7 +89,6 @@
 h2 {
     text-align: center;
     color: #2B81BF;
-    margin-top: 20px;
     font-size: 24px;
     font-weight: 600;
     line-height: 1.5;

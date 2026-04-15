@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import Server from "./Server";
 import "remixicon/fonts/remixicon.css";
 import bgVideo from "../../assets/servers-bg.mp4";
+import { getSupportIssues } from "../../api/supportService";
 import { getTrustMeta } from "../../utils/trustData";
 import "./Servers.css";
 
@@ -34,7 +35,7 @@ function extractServersFromData(dataList, colorMapRef) {
 
     acc.push({
       trustId,
-      serverName: `${trustName || `Trust-${trustId}`}-Cloud`,
+      serverName: `${trustName || `Trust-${trustId}`}`,
       bgColor: colorMapRef.current[trustId],
       inbound: data.inboundDetails || [],
       queue: data.queueDetails || [],
@@ -50,6 +51,21 @@ const chunkByThree = (arr) => {
     pages.push(arr.slice(i, i + 3));
   }
   return pages;
+};
+
+const getItemId = (item) => item?.id ?? item?.supportIssueId ?? null;
+
+const getSupportIssueRows = (responseData) => {
+  if (Array.isArray(responseData)) return responseData;
+
+  if (Array.isArray(responseData?.content)) return responseData.content;
+  if (Array.isArray(responseData?.data)) return responseData.data;
+  if (Array.isArray(responseData?.items)) return responseData.items;
+  if (Array.isArray(responseData?.supportIssues)) {
+    return responseData.supportIssues;
+  }
+
+  return [];
 };
 
 export default function Servers({
@@ -87,6 +103,40 @@ export default function Servers({
   const [activePage, setActivePage] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [manualNav, setManualNav] = useState(false);
+  const [supportIssues, setSupportIssues] = useState([]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadSupportIssues = async () => {
+      try {
+        const supportRes = await getSupportIssues();
+
+        if (!isActive) return;
+
+        const uniqueItems = Array.from(
+          new Map(
+            getSupportIssueRows(supportRes.data).map((item, index) => [
+              getItemId(item) ?? `idx-${index}`,
+              item,
+            ])
+          ).values()
+        );
+
+        setSupportIssues(uniqueItems);
+      } catch (loadError) {
+        if (!isActive) return;
+        console.error("Error loading support actions:", loadError);
+        setSupportIssues([]);
+      }
+    };
+
+    loadSupportIssues();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   /* ================= INSTANT TRUST SWITCH ================= */
   useEffect(() => {
@@ -239,6 +289,7 @@ export default function Servers({
                     {...server}
                     queueWarningLimit={queueWarningLimit}
                     serviceDelayLimit={serviceDelayLimit}
+                    supportIssues={supportIssues}
                     onHoverStart={() => setIsHovered(true)}
                     onHoverEnd={() => setIsHovered(false)}
                   />

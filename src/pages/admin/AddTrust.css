@@ -1,51 +1,97 @@
 .trustForm-actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.trust-box {
-  padding: 20px;
-}
-
-.trust-item {
-  display: flex;
-  gap: 14px;
-  padding: 16px 0;
-  border-bottom: 1px solid #ddd;
-}
-
-.trust-item:last-child {
-  border-bottom: none;
-}
-
-.trust-number {
+.download-trust-btn {
+  height: 42px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 6px;
+  background: #1f7a45;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
   font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(31, 122, 69, 0.18);
+  transition: background-color 0.2s ease, transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
-.trust-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.download-trust-btn i {
+  font-size: 18px;
 }
 
-.trust-info p {
-  margin: 0;
-  margin-bottom: 10px;
+.download-trust-btn:hover:not(:disabled) {
+  background: #186238;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(24, 98, 56, 0.22);
+}
+
+.download-trust-btn:disabled {
+  background: #b8c4bd;
+  color: #f8faf9;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.trust-table-wrap {
+  margin-top: 20px;
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid #cfd8e3;
+  border-radius: 12px;
+}
+
+.trust-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.trust-table th,
+.trust-table td {
+  padding: 14px 16px;
+  border: 1px solid #d9e1ea;
   text-align: left;
+  font-size: 14px;
+  vertical-align: middle;
 }
 
-.trust-name {
-  font-size: 14px;
-  font-weight: 600;
+.trust-table th {
+  background: #f8fbfd;
+  color: #1f2937;
+  font-weight: 700;
 }
 
-.trust-value {
-  font-size: 14px;
-  margin-bottom: 6px;
+.trust-table tbody tr:hover td {
+  background: #f9fcff;
+}
+
+.trust-table th:first-child,
+.trust-table td:first-child {
+  width: 72px;
+  min-width: 72px;
+}
+
+.trust-table th:last-child,
+.trust-table td:last-child {
+  width: 120px;
+  min-width: 120px;
+}
+
+.trust-empty {
+  text-align: center !important;
+  color: #777;
 }
 
 .trust-action-buttons {
-  margin-left: auto;
   display: flex;
   gap: 10px;
 }
@@ -78,4 +124,15 @@
 
 .delete-btn:hover {
   background-color: #c0392b;
+}
+
+@media (max-width: 768px) {
+  .trustForm-actions {
+    justify-content: stretch;
+  }
+
+  .download-trust-btn,
+  .add-btn {
+    width: 100%;
+  }
 }

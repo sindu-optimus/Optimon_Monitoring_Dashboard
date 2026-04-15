@@ -13,15 +13,23 @@
 
 .queue-tooltip-box {
   position: fixed;
-  transform: translateX(-20%);
+  transform: translateX(-50%);
   background: #333;
   color: #fff;
   padding: 6px 10px;
   border-radius: 4px;
-  font-size: 12px;
-  white-space: nowrap;
+  font-size: 14px;
+  white-space: normal; 
+  max-width: min(280px, calc(100vw - 24px));
+  word-break: break-word;
   z-index: 999999;
   pointer-events: none;
+}
+
+.queue-tooltip-box-info {
+  transform: translateX(-4%);
+  background-color: rgb(175 196 209);
+  color: #fff;
 }
 
 .server {
@@ -198,10 +206,210 @@
   transition: background-color 0.3s ease;
 }
 
+.pending-count-cell {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.pending-count-main {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  flex: 1;
+  gap: 8px;
+}
+
+.pending-count-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
 .trendIcon {
   width: 12px;
   height: 14px;
-  margin-left: 12px;
+  margin-top: 2px;
+  margin-left: 0;
+  flex-shrink: 0;
+}
+
+.trendIcon-muted {
+  filter: grayscale(1) brightness(0.35);
+}
+
+.pending-count-value {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.pending-count-reason {
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pending-info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  color: inherit;
+  cursor: pointer;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.pending-info-icon i {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.queue-content table td.pending-count-column {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.support-details-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000000;
+}
+
+.support-details-modal {
+  width: min(720px, 100%);
+  max-height: 80vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
+}
+
+.support-details-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.support-details-header h3 {
+  margin: 0 0 8px;
+  color: #111827;
+  font-size: 22px;
+}
+
+.support-details-header p {
+  margin: 4px 0;
+  color: #374151;
+  font-size: 14px;
+  text-align: left;
+}
+
+.support-details-close {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #334155;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.support-details-close i {
+  font-size: 20px;
+}
+
+.support-details-status {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+}
+
+.support-details-error {
+  color: #dc2626;
+}
+
+.support-details-list {
+  display: grid;
+  gap: 14px;
+}
+
+.support-details-card {
+  position: relative;
+  border: 1px solid #dbe4ee;
+  border-radius: 12px;
+  padding: 16px;
+  background: #f8fbfd;
+}
+
+.support-details-link-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.support-details-link-btn i {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.support-details-card p {
+  margin: 0 0 10px;
+  color: #374151;
+  font-size: 14px;
+  text-align: left;
+  white-space: normal;
+}
+
+.support-details-html {
+  margin-bottom: 10px;
+  color: #374151;
+  font-size: 14px;
+  white-space: normal;
+}
+
+.support-details-html strong,
+.support-details-html span {
+  display: inline;
+}
+
+.support-details-html strong {
+  margin-right: 4px;
+}
+
+.support-details-html span {
+  line-height: 1.5;
 }
 
 .cardEmptyState {

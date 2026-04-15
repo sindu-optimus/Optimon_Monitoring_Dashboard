@@ -165,7 +165,7 @@ const Login = ({ onLogin }) => {
 
               {/* FORGOT PASSWORD */}
               <div className="forgot-password">
-                <span onClick={() => alert("Forgot password flow")}>
+                <span aria-disabled="true">
                   Forgot password?
                 </span>
               </div>

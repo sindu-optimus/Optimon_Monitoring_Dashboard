@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getTrusts } from "../../api/trustService";
+import { filterTrustsByAccess } from "../../utils/trustAccess";
 import "./SummaryInterfaces.css";
 
 const TRUST_INTERFACES = {
@@ -30,7 +31,7 @@ const TRUST_INTERFACES = {
   ],
 };
 
-const SummaryInterfaces = () => {
+const SummaryInterfaces = ({ userProfile = null }) => {
   const [trusts, setTrusts] = useState([]);
   const [selectedTrust, setSelectedTrust] = useState("");
   const [loading, setLoading] = useState(true);
@@ -40,7 +41,7 @@ const SummaryInterfaces = () => {
     const fetchTrusts = async () => {
       try {
         const res = await getTrusts();
-        const trustList = Array.isArray(res.data) ? res.data : [];
+        const trustList = filterTrustsByAccess(res.data || [], userProfile);
 
         setTrusts(trustList);
         if (trustList.length > 0) {
@@ -55,7 +56,16 @@ const SummaryInterfaces = () => {
     };
 
     fetchTrusts();
-  }, []);
+  }, [userProfile]);
+
+  useEffect(() => {
+    if (
+      selectedTrust &&
+      !trusts.some((trust) => String(trust.name) === String(selectedTrust))
+    ) {
+      setSelectedTrust(trusts[0]?.name || "");
+    }
+  }, [selectedTrust, trusts]);
 
   const selectedInterfaces = useMemo(() => {
     return TRUST_INTERFACES[selectedTrust] || [];

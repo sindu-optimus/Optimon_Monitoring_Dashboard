@@ -145,7 +145,7 @@ export default function TrustForm({ initial = {}, onSuccess, onCancel }) {
             className={`toggle-btn yes ${startMonitoring ? "active" : ""}`}
             onClick={() => setStartMonitoring(true)}
           >
-            YES
+            Active
           </button>
 
           <button
@@ -153,7 +153,7 @@ export default function TrustForm({ initial = {}, onSuccess, onCancel }) {
             className={`toggle-btn no ${!startMonitoring ? "active" : ""}`}
             onClick={() => setStartMonitoring(false)}
           >
-            NO
+            Inactive
           </button>
         </div>
 

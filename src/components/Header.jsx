@@ -7,6 +7,8 @@ import logo from "../assets/logo.png";
 import refreshIcon from "../assets/refresh.png";
 import "./Header.css";
 
+const REFRESH_SPIN_MIN_MS = 1000;
+
 export default function Header({
   refreshTime,
   onRefreshTimeChange,
@@ -22,7 +24,7 @@ export default function Header({
   onServiceDelayLimitChange,
   selectedTrustIds,
   onTrustChange,
-  trustData,
+  trustList = [],
   onRefresh,
   onLogout,
 }) {
@@ -42,55 +44,56 @@ export default function Header({
   const stackLastName = hasFullName && displayName.length > 18 && Boolean(lastName);
 
   const handlePageRefresh = async () => {
-  if (isRefreshing) return;
+    if (isRefreshing) return;
 
-  console.log("Refresh icon clicked");
+    console.log("Refresh icon clicked");
+    const refreshStartTime = Date.now();
 
-  setIsRefreshing(true);
+    setIsRefreshing(true);
 
-  try {
-    await onRefresh();
-    console.log("Header refresh completed successfully");
-  } catch (error) {
-    console.error("Refresh failed:", error);
-  } finally {
-    setIsRefreshing(false);
-  }
-};
+    try {
+      await onRefresh();
+      console.log("Header refresh completed successfully");
+    } catch (error) {
+      console.error("Refresh failed:", error);
+    } finally {
+      const elapsedTime = Date.now() - refreshStartTime;
+      const remainingSpinTime = Math.max(
+        0,
+        REFRESH_SPIN_MIN_MS - elapsedTime
+      );
+
+      window.setTimeout(() => {
+        setIsRefreshing(false);
+      }, remainingSpinTime);
+    }
+  };
 
   /* ================= TRUST LIST ================= */
-  // const trustList = trustData || [];
+  const headerTrustOptions = useMemo(
+    () =>
+      trustList
+        .map((trust) => {
+          const trustId = Number(trust?.trustId ?? trust?.id);
 
-  const trustList = useMemo(() => {
-    const map = new Map();
+          if (!Number.isFinite(trustId)) {
+            return null;
+          }
 
-    trustData.forEach((item) => {
-      const inbound = item?.inboundDetails?.[0];
-      if (inbound?.trustId) {
-        map.set(
-          inbound.trustId,
-          inbound.trustName || `Trust ${inbound.trustId}`
-        );
-      }
-    });
+          return {
+            trustId,
+            trustName:
+              trust?.trustName || trust?.name || `Trust ${trustId}`,
+          };
+        })
+        .filter(Boolean),
+    [trustList]
+  );
 
-    return Array.from(map.entries()).map(([trustId, trustName]) => ({
-      trustId,
-      trustName,
-    }));
-  }, [trustData]);
-
-  /* HEADER TRUSTS (FIRST 3 + LAST) */
+  /* HEADER TRUSTS */
   const headerTrustList = useMemo(() => {
-    if (trustList.length <= 4) {
-      return trustList;
-    }
-
-    const firstThree = trustList.slice(0, 3);
-    const lastOne = trustList.slice(-1);
-
-    return [...firstThree, ...lastOne];
-  }, [trustList]);
+    return headerTrustOptions;
+  }, [headerTrustOptions]);
 
   const toggleDropdown = () => setIsDropdownOpen((s) => !s);
   const toggleSettings = () => setIsSettingsOpen((s) => !s);
@@ -132,7 +135,7 @@ export default function Header({
     }
   };
 
-  const goToAdmin = () => {
+  const goToSupport = () => {
     closeAllDropdowns();
     navigate("/admin");
   };
@@ -272,11 +275,9 @@ export default function Header({
               <i className="ri-home-4-line" /> Home
             </li>
 
-            {isAdminUser && (
-              <li className="dropdown-item" onClick={goToAdmin}>
-                <i className="ri-shield-user-line" /> Admin
-              </li>
-            )}
+            <li className="dropdown-item" onClick={goToSupport}>
+              <i className="ri-headphone-line" /> Support
+            </li>
 
             <li className="dropdown-item" onClick={goToProfile}>
               <i className="ri-user-line" /> Profile
@@ -302,7 +303,7 @@ export default function Header({
                 maxGridCount={maxGridCount}
                 selectedTrustIds={selectedTrustIds}
                 onTrustChange={onTrustChange}
-                trustList={trustList}
+                trustList={headerTrustOptions}
                 onRefreshTimeChange={onRefreshTimeChange}
                 onGridCountChange={onGridCountChange}
                 onQueueWarningLimitChange={onQueueWarningLimitChange}

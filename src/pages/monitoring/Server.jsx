@@ -10,6 +10,7 @@ export default function Server({
   queue = [],
   queueWarningLimit = 100,
   serviceDelayLimit = 100,
+  supportIssues = [],
   onHoverStart,
   onHoverEnd,
 }) {
@@ -114,6 +115,7 @@ export default function Server({
 
         return {
           id: q.id,
+          trustId: q.trustId,
           name: q.queueName ?? "Unknown",
           pending,
           critical,
@@ -196,6 +198,7 @@ export default function Server({
         noPendingServices={hasBackendNoPendingServices}
         lastUpdated={lastUpdated}
         lastUpdatedText={lastUpdatedText}
+        supportIssues={supportIssues}
       />
     </div>
   );

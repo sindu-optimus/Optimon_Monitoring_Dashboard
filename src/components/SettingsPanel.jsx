@@ -38,9 +38,11 @@ export default function SettingsPanel({
       newErrors.inputTime = "Refresh time must be at least 1 second";
     else if (inputTime > 180)
       newErrors.inputTime = "Refresh time cannot exceed 180 seconds";
-    if (!inputGridCount || inputGridCount < 1) newErrors.inputGridCount = "Grid count must be at least 1";
-    else if (inputGridCount > maxGridCount)
-      newErrors.inputGridCount = `Grid count cannot exceed ${maxGridCount}`;
+    if (isAllTrustSelecteds) {
+      if (!inputGridCount || inputGridCount < 1) newErrors.inputGridCount = "Grid count must be at least 1";
+      else if (inputGridCount > maxGridCount)
+        newErrors.inputGridCount = `Grid count cannot exceed ${maxGridCount}`;
+    }
     if (!inputQueueLimit || inputQueueLimit < 1) newErrors.inputQueueLimit = "Queue warning limit must be at least 1";
     if (!inputServiceDelay || inputServiceDelay < 1)
       newErrors.inputServiceDelay = "Service delay limit must be at least 1 minute";
@@ -50,6 +52,10 @@ export default function SettingsPanel({
   };
 
   const validateGridCount = (value) => {
+    if (!isAllTrustSelecteds) {
+      return "";
+    }
+
     if (!value || value < 1) {
       return "Grid count must be at least 1";
     }
@@ -74,6 +80,20 @@ export default function SettingsPanel({
 
   const handleBlur = () => validate();
 
+  useEffect(() => {
+    if (!isAllTrustSelecteds) {
+      setErrors((prev) => {
+        if (!prev.inputGridCount) {
+          return prev;
+        }
+
+        const nextErrors = { ...prev };
+        delete nextErrors.inputGridCount;
+        return nextErrors;
+      });
+    }
+  }, [isAllTrustSelecteds]);
+
   return (
     <div className="settings">
 
@@ -97,7 +117,7 @@ export default function SettingsPanel({
         max={maxGridCount}
         value={inputGridCount}
         disabled={!isAllTrustSelecteds}   
-        className={errors.inputGridCount ? "input-invalid" : ""}
+        className={`${errors.inputGridCount ? "input-invalid" : ""} ${!isAllTrustSelecteds ? "input-disabled" : ""}`.trim()}
         onChange={(e) => {
           const nextValue = e.target.value === "" ? "" : +e.target.value;
           setInputGridCount(nextValue);
@@ -117,7 +137,11 @@ export default function SettingsPanel({
         }}
         onBlur={handleBlur}
       />
-      {errors.inputGridCount && <p className="error">{errors.inputGridCount}</p>}
+      {isAllTrustSelecteds && errors.inputGridCount && <p className="error">{errors.inputGridCount}</p>}
+
+      <p className={`info-text ${!isAllTrustSelecteds ? "info-text-muted" : ""}`}>
+        Accessible up to {maxGridCount} grids
+      </p>
 
       {/* Optional helper text */}
       {!isAllTrustSelecteds && (

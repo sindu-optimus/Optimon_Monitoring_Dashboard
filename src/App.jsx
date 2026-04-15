@@ -23,13 +23,17 @@ import AddUser from "./pages/admin/AddUser";
 import Profile from "./pages/admin/Profile";
 import SummaryInterfaces from "./pages/admin/SummaryInterfaces";
 import SettingsPage from "./pages/admin/SettingsPage";
+import CriticalInterfaces from "./pages/admin/CriticalInterfaces";
+import SupportActions from "./pages/admin/SupportActions";
 
 import MessageBank from "./pages/shared/MessageBank";
-import SupportActions from "./pages/shared/SupportActions";
 import SendMail from "./pages/shared/SendMail";
 import FAQ from "./pages/shared/FAQ";
 import MessageTrend from "./pages/shared/MessageTrend";
 import { getTrustMeta } from "./utils/trustData";
+import { filterTrustsByAccess } from "./utils/trustAccess";
+import { getMetricDetails } from "./api/metricsService";
+import { getTrusts } from "./api/trustService";
 
 import "./App.css";
 
@@ -70,6 +74,7 @@ export default function App() {
   );
   const [allTrustData, setAllTrustData] = useState([]);
   const [trustIds, setTrustIds] = useState([]);
+  const [trustList, setTrustList] = useState([]);
   const isAdminUser =
     Number(loggedInUser?.roleId) === 1 ||
     String(loggedInUser?.role || "").toLowerCase() === "admin";
@@ -82,12 +87,21 @@ export default function App() {
         .map(Number)
         .sort((a, b) => a - b) || [];
 
+    const listedTrustIds = trustList
+      .map((trust) => Number(trust.trustId))
+      .filter((id) => Number.isFinite(id))
+      .sort((a, b) => a - b);
+
+    if (listedTrustIds.length > 0) {
+      return listedTrustIds;
+    }
+
     if (userTrustIds.length > 0) {
       return userTrustIds;
     }
 
     return Array.from({ length: gridCount }, (_, i) => i + 1);
-  }, [loggedInUser, gridCount]);
+  }, [loggedInUser, trustList, gridCount]);
 
   const maxGridCount = useMemo(() => {
     if (allowedTrustIds.length > 0) {
@@ -118,23 +132,43 @@ export default function App() {
 
   async function fetchTrustMetrics(trustId) {
     try {
-      const res = await fetch(
-        `http://18.168.87.76:8084/getMetricDetails/?trustId=${trustId}`
-        // `http://18.170.60.107:8085/getMetricDetails/?trustId=${trustId}`
-
-      );
-      if (!res.ok) throw new Error();
-
-      const data = await res.json();
+      const data = await getMetricDetails(trustId);
       return data?.inboundDetails || data?.queueDetails ? data : null;
     } catch {
       return null;
     }
   }
 
+  async function fetchTrustList() {
+    try {
+      const res = await getTrusts();
+      const trusts = filterTrustsByAccess(res.data || [], loggedInUser)
+        .map((trust) => {
+          const trustId = Number(trust?.id);
+
+          if (!Number.isFinite(trustId)) {
+            return null;
+          }
+
+          return {
+            trustId,
+            trustName: trust?.name || `Trust ${trustId}`,
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.trustId - b.trustId);
+
+      setTrustList(trusts);
+    } catch (error) {
+      console.error("Error fetching trust list:", error);
+      setTrustList([]);
+    }
+  }
+
   /* ===================== PROGRESSIVE FETCH ===================== */
   async function fetchTrustsProgressively(ids, append = false) {
-    ids.forEach(async (id) => {
+    await Promise.all(
+      ids.map(async (id) => {
       const data = await fetchTrustMetrics(id);
       if (!data) return;
 
@@ -163,10 +197,17 @@ export default function App() {
 
         return sortTrustDataById(updated);
       });
-    });
+      })
+    );
   }
 
   /* ===================== INITIAL LOAD ===================== */
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    fetchTrustList();
+  }, [isLoggedIn, loggedInUser]);
+
   useEffect(() => {
     if (!isLoggedIn) return;
 
@@ -246,6 +287,37 @@ export default function App() {
     });
   }, [isLoggedIn, allowedTrustIds]);
 
+  useEffect(() => {
+    if (
+      !isLoggedIn ||
+      selectedTrustIds.includes("ALL") ||
+      selectedTrustIds.length === 0
+    ) {
+      return;
+    }
+
+    const loadedTrustIds = new Set(
+      allTrustData
+        .map((item) => getTrustMeta(item).trustId)
+        .filter((id) => id != null)
+    );
+
+    const missingTrustIds = selectedTrustIds
+      .map(Number)
+      .filter(
+        (id) =>
+          Number.isFinite(id) &&
+          allowedTrustIds.includes(id) &&
+          !loadedTrustIds.has(id)
+      );
+
+    if (missingTrustIds.length === 0) {
+      return;
+    }
+
+    fetchTrustsProgressively(missingTrustIds, true);
+  }, [isLoggedIn, selectedTrustIds, allowedTrustIds, allTrustData]);
+
   /* ===================== AUTO REFRESH ===================== */
   useEffect(() => {
     if (!isLoggedIn || trustIds.length === 0) return;
@@ -287,6 +359,7 @@ export default function App() {
     setSelectedTrustIds(["ALL"]);
     setAllTrustData([]);
     setTrustIds([]);
+    setTrustList([]);
     sessionStorage.removeItem("sessionPassword");
     navigate("/login");
   };
@@ -314,7 +387,7 @@ export default function App() {
           onServiceDelayLimitChange={setServiceDelayLimit}
           selectedTrustIds={selectedTrustIds}
           onTrustChange={setSelectedTrustIds}
-          trustData={allTrustData}
+          trustList={trustList}
           onRefresh={() => fetchTrustsProgressively(trustIds)}
           onLogout={handleLogout}
         />
@@ -360,6 +433,15 @@ export default function App() {
               />
             }
           />
+          <Route
+            path="support-actions/:issueId"
+            element={
+              <SupportActions
+                isAdminUser={isAdminUser}
+                userProfile={loggedInUser}
+              />
+            }
+          />
           <Route path="send-email" element={<SendMail />} />
           <Route path="faqs" element={<FAQ />} />
           <Route
@@ -391,13 +473,13 @@ export default function App() {
           path="/admin"
           element={
             isLoggedIn ? (
-              isAdminUser ? <AdminLayout /> : <Navigate to="/action" replace />
+              <AdminLayout isAdminUser={isAdminUser} />
             ) : (
               <Navigate to="/login" />
             )
           }
         >
-          <Route index element={<Navigate to="profile" replace />} />
+          <Route index element={<Navigate to="support-actions" replace />} />
           <Route
             path="profile"
             element={
@@ -407,7 +489,10 @@ export default function App() {
               />
             }
           />
-          <Route path="add-trusts" element={<AddTrust />} />
+          <Route
+            path="add-trusts"
+            element={isAdminUser ? <AddTrust /> : <Navigate to="/admin/support-actions" replace />}
+          />
           <Route
             path="support-actions"
             element={
@@ -417,10 +502,46 @@ export default function App() {
               />
             }
           />
+          <Route
+            path="support-actions/:issueId"
+            element={
+              <SupportActions
+                isAdminUser={isAdminUser}
+                userProfile={loggedInUser}
+              />
+            }
+          />
+          <Route
+            path="critical-interfaces"
+            element={
+              <CriticalInterfaces
+                isAdminUser={isAdminUser}
+                userProfile={loggedInUser}
+              />
+            }
+          />
           <Route path="send-email" element={<SendMail />} />
           <Route path="faqs" element={<FAQ />} />
-          <Route path="add-users" element={<AddUser />} />
-          <Route path="summary-interfaces" element={<SummaryInterfaces />} />
+          <Route
+            path="add-users"
+            element={
+              isAdminUser ? (
+                <AddUser userProfile={loggedInUser} />
+              ) : (
+                <Navigate to="/admin/support-actions" replace />
+              )
+            }
+          />
+          <Route
+            path="summary-interfaces"
+            element={
+              isAdminUser ? (
+                <SummaryInterfaces userProfile={loggedInUser} />
+              ) : (
+                <Navigate to="/admin/support-actions" replace />
+              )
+            }
+          />
           <Route
             path="settings"
             element={
