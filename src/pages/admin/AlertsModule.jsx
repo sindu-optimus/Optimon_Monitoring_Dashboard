@@ -1,20 +1,19 @@
 import React, { useEffect, useMemo, useState } from "react";
-import CriticalInterfaceForm from "../../components/CriticalInterfaceForm";
+import AlertsModuleForm from "../../components/AlertsModuleForm";
 import {
   deleteCriticalInterface,
+  getCriticalInboundReceiverById,
+  getCriticalInboundReceivers,
   updateAllCriticalInterfaceAlerts,
   updateAllCriticalInboundReceiverAlerts,
   getCriticalInterfaceById,
   getCriticalInterfaces,
-  getCriticalInboundReceiverById,
-  getCriticalInboundReceivers,
   updateCriticalInterfaceAlert,
   updateCriticalInboundReceiverAlert,
-  updateCriticalInterface,
-} from "../../api/metricsService";
+} from "../../api/criticalInterfacesService";
 import { getTrusts } from "../../api/trustService";
 import { filterTrustsByAccess } from "../../utils/trustAccess";
-import "./CriticalInterfaces.css";
+import "./AlertsModule.css";
 
 const VIEW_OPTIONS = {
   INBOUND: "INBOUND",
@@ -26,6 +25,14 @@ const ALERT_FILTER_OPTIONS = {
   ENABLED: "ENABLED",
   DISABLED: "DISABLED",
 };
+
+const TYPE_FILTER_OPTIONS = {
+  ALL: "ALL",
+  CRITICAL: "CRITICAL",
+  NON_CRITICAL: "NON_CRITICAL",
+};
+
+const DEFAULT_PAGE_SIZE = 10;
 
 const INBOUND_COLUMNS = [
   {
@@ -145,6 +152,39 @@ const getInboundReceiverFromApiResponse = (response) => {
   return data?.data ?? data?.criticalInboundReceiver ?? data;
 };
 
+const getUpdatedOnValue = (item) =>
+  item?.updatedOn ??
+  item?.updated_on ??
+  item?.updatedAt ??
+  item?.updated_at ??
+  item?.modifiedOn ??
+  item?.modified_on ??
+  item?.modifiedAt ??
+  item?.modified_at ??
+  item?.lastUpdated ??
+  item?.last_updated;
+
+const formatDateTime = (value) => {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  const pad = (part) => String(part).padStart(2, "0");
+
+  return `${[
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join("-")} ${[
+    pad(date.getHours()),
+    pad(date.getMinutes()),
+    pad(date.getSeconds()),
+  ].join(":")}`;
+};
+
 const getCurrentViewFromType = (interfaceType) =>
   String(interfaceType).toUpperCase() === VIEW_OPTIONS.INBOUND
     ? VIEW_OPTIONS.INBOUND
@@ -162,7 +202,7 @@ const getAlertFilterValue = (alertFilter) => {
   return undefined;
 };
 
-export default function CriticalInterfaces({
+export default function AlertsModule({
   isAdminUser = false,
   userProfile = null,
 }) {
@@ -173,6 +213,9 @@ export default function CriticalInterfaces({
   const [selectedView, setSelectedView] = useState(VIEW_OPTIONS.INBOUND);
   const [selectedAlertFilter, setSelectedAlertFilter] = useState(
     ALERT_FILTER_OPTIONS.ALL
+  );
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState(
+    TYPE_FILTER_OPTIONS.ALL
   );
   const [criticalInterfaces, setCriticalInterfaces] = useState([]);
   const [criticalInboundReceivers, setCriticalInboundReceivers] = useState([]);
@@ -186,9 +229,17 @@ export default function CriticalInterfaces({
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
   const [alertDialogRow, setAlertDialogRow] = useState(null);
   const [showBulkAlertDialog, setShowBulkAlertDialog] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const isAlertEnabled = (row) =>
     getBooleanValue(row?.rawItem, ["deleted", "isDeleted"], false);
+  const isCriticalRow = (row) =>
+    getBooleanValue(
+      row?.rawItem,
+      ["isCritical", "critical", "is_critical"],
+      false
+    );
   const selectedTrust = trusts.find(
     (trust) => String(trust.id) === String(selectedTrustId)
   );
@@ -311,19 +362,40 @@ export default function CriticalInterfaces({
         return true;
       });
 
-      return inboundItems.map((item, index) => ({
-        id: item?.id ?? `inbound-${index}`,
-        interfaceType: VIEW_OPTIONS.INBOUND,
-        trustId: selectedTrustId,
-        rawItem: item,
-        serialNo: index + 1,
-        inboundName: getFirstValue(item, INBOUND_COLUMNS[0].getters),
-        weekDayInside: getFirstValue(item, INBOUND_COLUMNS[1].getters),
-        weekDayOutside: getFirstValue(item, INBOUND_COLUMNS[2].getters),
-        weekendInside: getFirstValue(item, INBOUND_COLUMNS[3].getters),
-        weekendOutside: getFirstValue(item, INBOUND_COLUMNS[4].getters),
-        isMondayIgnore: getFirstValue(item, INBOUND_COLUMNS[5].getters),
-      }));
+      const sortedInboundItems = [...inboundItems].sort((a, b) => {
+        const firstName = getFirstValue(a, INBOUND_COLUMNS[0].getters);
+        const secondName = getFirstValue(b, INBOUND_COLUMNS[0].getters);
+
+        return firstName.localeCompare(secondName, undefined, {
+          sensitivity: "base",
+        });
+      });
+
+      return sortedInboundItems.map((item, index) => {
+        const isMondayIgnoreBool = getBooleanValue(item, INBOUND_COLUMNS[5].getters);
+
+        return {
+          id: item?.id ?? `inbound-${index}`,
+          interfaceType: VIEW_OPTIONS.INBOUND,
+          trustId: selectedTrustId,
+          rawItem: item,
+          serialNo: index + 1,
+          inboundName: getFirstValue(item, INBOUND_COLUMNS[0].getters),
+          weekDayInside: getFirstValue(item, INBOUND_COLUMNS[1].getters),
+          weekDayOutside: getFirstValue(item, INBOUND_COLUMNS[2].getters),
+          weekendInside: getFirstValue(item, INBOUND_COLUMNS[3].getters),
+          weekendOutside: getFirstValue(item, INBOUND_COLUMNS[4].getters),
+          isMondayIgnore: isMondayIgnoreBool ? "Yes" : "No",
+          isCritical: getBooleanValue(item, [
+            "isCritical",
+            "critical",
+            "is_critical",
+          ])
+            ? "Yes"
+            : "No",
+          updatedOn: formatDateTime(getUpdatedOnValue(item)),
+        };
+      });
     }
 
     const queueItems = criticalInterfaces.filter((item) => {
@@ -340,7 +412,30 @@ export default function CriticalInterfaces({
       return true;
     });
 
-    return queueItems.map((item, index) => ({
+    const sortedQueueItems = [...queueItems].sort((a, b) => {
+      const firstName = getFirstValue(a, [
+        "endpointName",
+        "interfaceName",
+        "interface_name",
+        "queueName",
+        "serviceName",
+        "name",
+      ]);
+      const secondName = getFirstValue(b, [
+        "endpointName",
+        "interfaceName",
+        "interface_name",
+        "queueName",
+        "serviceName",
+        "name",
+      ]);
+
+      return firstName.localeCompare(secondName, undefined, {
+        sensitivity: "base",
+      });
+    });
+
+    return sortedQueueItems.map((item, index) => ({
       id: item?.id ?? `queue-${index}`,
       interfaceType: VIEW_OPTIONS.OTHER,
       trustId: selectedTrustId,
@@ -354,6 +449,14 @@ export default function CriticalInterfaces({
         "serviceName",
         "name",
       ]),
+      isCritical: getBooleanValue(item, [
+        "isCritical",
+        "critical",
+        "is_critical",
+      ])
+        ? "Yes"
+        : "No",
+      updatedOn: formatDateTime(getUpdatedOnValue(item)),
     }));
   }, [
     criticalInboundReceivers,
@@ -366,6 +469,18 @@ export default function CriticalInterfaces({
 
   const filteredTableRows = useMemo(() => {
     const filteredRows = tableRows.filter((row) => {
+      if (selectedTypeFilter === TYPE_FILTER_OPTIONS.CRITICAL) {
+        if (!isCriticalRow(row)) {
+          return false;
+        }
+      }
+
+      if (selectedTypeFilter === TYPE_FILTER_OPTIONS.NON_CRITICAL) {
+        if (isCriticalRow(row)) {
+          return false;
+        }
+      }
+
       if (selectedAlertFilter === ALERT_FILTER_OPTIONS.ENABLED) {
         return isAlertEnabled(row);
       }
@@ -381,7 +496,55 @@ export default function CriticalInterfaces({
       ...row,
       serialNo: index + 1,
     }));
-  }, [selectedAlertFilter, tableRows]);
+  }, [selectedAlertFilter, selectedTypeFilter, tableRows]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTableRows.length / pageSize));
+  const paginatedTableRows = useMemo(() => {
+    const startIndex = currentPage * pageSize;
+    return filteredTableRows.slice(startIndex, startIndex + pageSize);
+  }, [currentPage, filteredTableRows, pageSize]);
+  const paginationStart = filteredTableRows.length === 0
+    ? 0
+    : currentPage * pageSize + 1;
+  const paginationEnd = Math.min(
+    currentPage * pageSize + paginatedTableRows.length,
+    filteredTableRows.length
+  );
+  const canGoPrevious = !tableLoading && currentPage > 0;
+  const canGoNext = !tableLoading && currentPage < totalPages - 1;
+  const displayPage = currentPage + 1;
+
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [selectedTrustId, selectedView, selectedAlertFilter, selectedTypeFilter]);
+
+  useEffect(() => {
+    if (currentPage >= totalPages) {
+      setCurrentPage(Math.max(totalPages - 1, 0));
+    }
+  }, [currentPage, totalPages]);
+
+  const handlePageSizeChange = (e) => {
+    const numericValue = Number(e.target.value);
+
+    if (!Number.isFinite(numericValue)) {
+      return;
+    }
+
+    const nextPageSize = Math.max(1, Math.floor(numericValue));
+    setPageSize(nextPageSize);
+    setCurrentPage(0);
+  };
+
+  const handlePreviousPage = () => {
+    if (!canGoPrevious) return;
+    setCurrentPage((prev) => Math.max(prev - 1, 0));
+  };
+
+  const handleNextPage = () => {
+    if (!canGoNext) return;
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages - 1));
+  };
 
   const handleAddClick = () => {
     setEditingInterface(null);
@@ -552,7 +715,7 @@ export default function CriticalInterfaces({
 
   if (showForm) {
     return (
-      <CriticalInterfaceForm
+      <AlertsModuleForm
         initial={editingInterface}
         trusts={trusts}
         defaultTrustId={selectedTrustId}
@@ -566,7 +729,7 @@ export default function CriticalInterfaces({
   return (
     <div className="content">
       <div className="critical-page-header">
-        <h2 className="critical-page-title">Critical interfaces</h2>
+        <h2 className="critical-page-title">Interface Alerts</h2>
       </div>
       <div className="critical-actions">
         {isAdminUser && (
@@ -575,7 +738,7 @@ export default function CriticalInterfaces({
             className="critical-add-btn"
             onClick={handleAddClick}
           >
-            Add Critical Interface
+            Add Interface Alert
           </button>
         )}
       </div>
@@ -619,6 +782,25 @@ export default function CriticalInterfaces({
             <option value={ALERT_FILTER_OPTIONS.ALL}>All</option>
             <option value={ALERT_FILTER_OPTIONS.ENABLED}>Enabled</option>
             <option value={ALERT_FILTER_OPTIONS.DISABLED}>Disabled</option>
+          </select>
+        </div>
+
+        <div className="critical-filter-group">
+          <label className="critical-label" htmlFor="critical-type-filter">
+            Type
+          </label>
+
+          <select
+            id="critical-type-filter"
+            className="critical-select"
+            value={selectedTypeFilter}
+            onChange={(e) => setSelectedTypeFilter(e.target.value)}
+          >
+            <option value={TYPE_FILTER_OPTIONS.ALL}>All</option>
+            <option value={TYPE_FILTER_OPTIONS.CRITICAL}>Critical</option>
+            <option value={TYPE_FILTER_OPTIONS.NON_CRITICAL}>
+              Non-critical
+            </option>
           </select>
         </div>
 
@@ -693,14 +875,18 @@ export default function CriticalInterfaces({
                 {INBOUND_COLUMNS.map((column) => (
                   <th key={column.key}>{column.label}</th>
                 ))}
+                <th>IsCritical</th>
                 <th className="critical-alert-col">Alert</th>
+                <th>UpdatedOn</th>
                 {isAdminUser && <th>Actions</th>}
               </tr>
             ) : (
               <tr>
                 <th>S.No</th>
                 <th>Interface Name</th>
+                <th>IsCritical</th>
                 <th className="critical-alert-col">Alert</th>
+                <th>UpdatedOn</th>
                 {isAdminUser && <th>Actions</th>}
               </tr>
             )}
@@ -713,11 +899,11 @@ export default function CriticalInterfaces({
                   colSpan={
                     selectedView === VIEW_OPTIONS.INBOUND
                       ? isAdminUser
-                        ? 9
-                        : 8
+                        ? 11
+                        : 10
                       : isAdminUser
-                        ? 4
-                        : 3
+                        ? 6
+                        : 5
                   }
                   className="critical-empty-row"
                 >
@@ -732,11 +918,11 @@ export default function CriticalInterfaces({
                   colSpan={
                     selectedView === VIEW_OPTIONS.INBOUND
                       ? isAdminUser
-                        ? 9
-                        : 8
+                        ? 11
+                        : 10
                       : isAdminUser
-                        ? 4
-                        : 3
+                        ? 6
+                        : 5
                   }
                   className="critical-empty-row"
                 >
@@ -746,7 +932,7 @@ export default function CriticalInterfaces({
             )}
 
             {!tableLoading &&
-              filteredTableRows.map((row) =>
+              paginatedTableRows.map((row) =>
                 selectedView === VIEW_OPTIONS.INBOUND ? (
                   <tr key={row.id}>
                     <td>{row.serialNo}</td>
@@ -755,7 +941,12 @@ export default function CriticalInterfaces({
                     <td>{row.weekDayOutside}</td>
                     <td>{row.weekendInside}</td>
                     <td>{row.weekendOutside}</td>
-                    <td>{row.isMondayIgnore}</td>
+                    <td>
+                      <span className={`monday-badge ${row.isMondayIgnore === "Yes" ? "yes" : "no"}`}>
+                        {row.isMondayIgnore}
+                      </span>
+                    </td>
+                    <td>{row.isCritical}</td>
                     <td className="critical-alert-cell">
                       <button
                         type="button"
@@ -781,6 +972,7 @@ export default function CriticalInterfaces({
                         </span>
                       </button>
                     </td>
+                    <td>{row.updatedOn}</td>
                     {isAdminUser && (
                       <td>
                         <div className="critical-action-buttons">
@@ -809,6 +1001,7 @@ export default function CriticalInterfaces({
                   <tr key={row.id}>
                     <td>{row.serialNo}</td>
                     <td>{row.interfaceName}</td>
+                    <td>{row.isCritical}</td>
                     <td className="critical-alert-cell">
                       <button
                         type="button"
@@ -834,6 +1027,7 @@ export default function CriticalInterfaces({
                         </span>
                       </button>
                     </td>
+                    <td>{row.updatedOn}</td>
                     {isAdminUser && (
                       <td>
                         <div className="critical-action-buttons">
@@ -863,6 +1057,50 @@ export default function CriticalInterfaces({
           </tbody>
         </table>
       </div>
+
+      {!tableLoading && filteredTableRows.length > 0 && (
+        <div className="paginationControls">
+          <div className="paginationShowing">
+            Showing {paginationStart} to {paginationEnd}
+          </div>
+
+          <div className="paginationPages">
+            <label className="critical-pagination-label critical-page-size-wrapper">
+              Page Size:
+              <input
+                type="number"
+                className="critical-page-size-input"
+                value={pageSize}
+                min={1}
+                step={1}
+                onChange={handlePageSizeChange}
+              />
+            </label>
+
+            <button
+              type="button"
+              className="paginationBtn"
+              onClick={handlePreviousPage}
+              disabled={!canGoPrevious}
+            >
+              Prev
+            </button>
+
+            <span className="paginationInfo">
+              Page {displayPage} of {totalPages}
+            </span>
+
+            <button
+              type="button"
+              className="paginationBtn"
+              onClick={handleNextPage}
+              disabled={!canGoNext}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {alertDialogRow && (
         <div className="critical-modal-overlay" role="dialog" aria-modal="true">

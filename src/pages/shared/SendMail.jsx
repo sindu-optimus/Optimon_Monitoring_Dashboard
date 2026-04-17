@@ -1,5 +1,4 @@
 import React, { useRef, useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBold,
@@ -7,62 +6,215 @@ import {
   faUnderline,
   faListOl,
   faListUl,
+  faCircleInfo,
 } from "@fortawesome/free-solid-svg-icons";
+import { getTrusts } from "../../api/trustService";
+import {
+  createCriticalInterface,
+  getCriticalInboundReceivers,
+  getCriticalInterfaces,
+} from "../../api/criticalInterfacesService";
 
 import "./SendMail.css";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const TYPE_OPTIONS = {
+  QUEUE: "QUEUE",
+  IDLE_TIME: "IDLE_TIME",
+};
+const OTHER_INTERFACE_VALUE = "__OTHER__";
+const INTERFACE_TYPE_BY_EMAIL_TYPE = {
+  [TYPE_OPTIONS.IDLE_TIME]: "INBOUND",
+  [TYPE_OPTIONS.QUEUE]: "OTHER",
+};
+const DUMMY_TO_EMAILS = [
+  "optimus.support@example.com",
+  "interface.team@example.com",
+  "integration.ops@example.com",
+  "middleware.support@example.com",
+  "service.owner@example.com",
+];
+
+const unwrapApiData = (response) => response?.data ?? response;
+
+const getListFromApiResponse = (response) => {
+  const data = unwrapApiData(response);
+  const list =
+    data?.data ??
+    data?.content ??
+    data?.items ??
+    data?.criticalInterfaces ??
+    data?.criticalInterfaceList ??
+    data?.criticalInboundReceivers ??
+    data?.criticalInboundReceiverList ??
+    data;
+
+  return Array.isArray(list) ? list : [];
+};
+
+const getFirstValue = (item, keys, fallback = "") => {
+  for (const key of keys) {
+    const value = item?.[key];
+
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return String(value).trim();
+    }
+  }
+
+  return fallback;
+};
+
+const getCreatedInterfaceFromApiResponse = (response) => {
+  const data = unwrapApiData(response);
+  return data?.data ?? data?.criticalInboundReceiver ?? data?.criticalInterface ?? data;
+};
+
+const buildAutomaticSubject = ({ trustName, selectedType, interfaceName }) => {
+  if (!trustName || !selectedType || !interfaceName) {
+    return "";
+  }
+
+  if (selectedType === TYPE_OPTIONS.IDLE_TIME) {
+    return `${trustName} Live - Idle time observation on ${interfaceName}`;
+  }
+
+  return `${trustName} Live - ${interfaceName} listener down`;
+};
+
+const buildAutomaticBody = ({ selectedType, interfaceName }) => {
+  if (!selectedType || !interfaceName) {
+    return "";
+  }
+
+  if (selectedType === TYPE_OPTIONS.IDLE_TIME) {
+    return `Dear Team,
+
+We are observing that no messages are being received in the ${interfaceName} inbound.
+
+Could you please check the outbound at your end and restart it if required?
+
+Thanks & Regards,
+Madhu`;
+  }
+
+  return `Dear Team,
+
+We have been observing that, messages are queueing in the ${interfaceName}. We have restarted the listener still the queue is not going down.
+
+Could you check the listener and restart if required please?
+
+Thanks,
+Optimus Support`;
+};
 
 const SendMail = () => {
-  const location = useLocation();
-  const { interfaceId } = location.state || {};
-
   const editorRef = useRef(null);
   const toInputRef = useRef(null);
   const ccInputRef = useRef(null);
+  const interfaceInputRef = useRef(null);
+  const customInterfaceSaveKeyRef = useRef("");
+  const lastAutomaticBodyRef = useRef("");
 
   const [to, setTo] = useState([]);
   const [cc, setCc] = useState([]);
   const [subject, setSubject] = useState("");
   const [bodyValue, setBodyValue] = useState("");
 
-  const [emailList, setEmailList] = useState([]);
-  const [filteredEmails, setFilteredEmails] = useState([]);
   const [toInputValue, setToInputValue] = useState("");
   const [ccInputValue, setCcInputValue] = useState("");
   const [showToDropdown, setShowToDropdown] = useState(false);
   const [showCcDropdown, setShowCcDropdown] = useState(false);
+  const [trustOptions, setTrustOptions] = useState([]);
+  const [selectedTrustId, setSelectedTrustId] = useState("");
+  const [selectedType, setSelectedType] = useState("");
+  const [interfaceOptions, setInterfaceOptions] = useState([]);
+  const [selectedInterfaceId, setSelectedInterfaceId] = useState("");
+  const [customInterfaceName, setCustomInterfaceName] = useState("");
+  const [interfaceSearchValue, setInterfaceSearchValue] = useState("");
+  const [showInterfaceDropdown, setShowInterfaceDropdown] = useState(false);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [customInterfaceSaving, setCustomInterfaceSaving] = useState(false);
 
   const [errors, setErrors] = useState({});
   const [isFormValid, setIsFormValid] = useState(false);
 
   const [responseMessage, setResponseMessage] = useState("");
   const [responseType, setResponseType] = useState("success");
+  const [showBodyTooltip, setShowBodyTooltip] = useState(false);
 
-  /* ================= FETCH EMAILS ================= */
+  /* ================= FETCH LOOKUPS ================= */
   useEffect(() => {
-    const fetchEmails = async () => {
+    const fetchLookupData = async () => {
       try {
-        const res = await fetch(
-          `https://neevapi.ddns.net/api/nim/emailids/v1?InterfaceId=${interfaceId}`
-        );
-        const data = await res.json();
-        setEmailList(data.emailList || []);
-        setFilteredEmails(data.emailList || []);
+        const res = await getTrusts();
+        setTrustOptions(Array.isArray(res?.data) ? res.data : []);
       } catch (err) {
         console.error(err);
       }
     };
 
-    fetchEmails();
-  }, [interfaceId]);
+    fetchLookupData();
+  }, []);
 
   useEffect(() => {
-    const selected = [...to, ...cc];
-    setFilteredEmails(
-      emailList.filter((email) => !selected.includes(email))
-    );
-  }, [to, cc, emailList]);
+    const fetchInterfaces = async () => {
+      if (!selectedTrustId || !selectedType) {
+        setInterfaceOptions([]);
+        return;
+      }
+
+      try {
+        setLookupLoading(true);
+
+        const response =
+          selectedType === TYPE_OPTIONS.IDLE_TIME
+            ? await getCriticalInboundReceivers({ trustId: selectedTrustId })
+            : await getCriticalInterfaces({ trustId: selectedTrustId });
+
+        const items = getListFromApiResponse(response);
+        const mappedItems = items
+          .map((item, index) => ({
+            id: item?.id ?? `${selectedType}-${index}`,
+            name:
+              selectedType === TYPE_OPTIONS.IDLE_TIME
+                ? getFirstValue(item, [
+                    "serviceName",
+                    "interfaceName",
+                    "interface_name",
+                    "name",
+                  ])
+                : getFirstValue(item, [
+                    "endpointName",
+                    "interfaceName",
+                    "interface_name",
+                    "queueName",
+                    "serviceName",
+                    "name",
+                  ]),
+          }))
+          .filter((item) => item.name)
+          .sort((a, b) =>
+            a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+          );
+
+        setInterfaceOptions(mappedItems);
+      } catch (err) {
+        console.error(err);
+        setInterfaceOptions([]);
+      } finally {
+        setLookupLoading(false);
+      }
+    };
+
+    fetchInterfaces();
+  }, [selectedTrustId, selectedType]);
+
+  useEffect(() => {
+    setSelectedInterfaceId("");
+    setCustomInterfaceName("");
+    setInterfaceSearchValue("");
+    setShowInterfaceDropdown(false);
+  }, [selectedTrustId, selectedType]);
 
   /* ================= VALIDATION ================= */
   const getEditorText = () => editorRef.current?.innerText?.trim() || "";
@@ -76,14 +228,190 @@ const SendMail = () => {
   const hasOnlyValidEmails = (emails = []) =>
     emails.every((email) => EMAIL_REGEX.test(email));
 
-  const getDraftToEmails = () => [...to, ...parseEmailInput(toInputValue)];
+  const getDraftToEmails = () => [...to];
 
   const getDraftCcEmails = () => [...cc, ...parseEmailInput(ccInputValue)];
+  const isOtherInterface = selectedInterfaceId === OTHER_INTERFACE_VALUE;
+  const hasSelectedInterface = isOtherInterface
+    ? customInterfaceName.trim().length > 0
+    : Boolean(selectedInterfaceId);
+  const filteredInterfaceOptions = interfaceOptions.filter((item) =>
+    item.name.toLowerCase().includes(interfaceSearchValue.trim().toLowerCase())
+  );
+  const selectedTrust = trustOptions.find(
+    (trust) => String(trust.id) === String(selectedTrustId)
+  );
+  const selectedTrustName = selectedTrust?.name || "";
+  const selectedInterfaceName = isOtherInterface
+    ? customInterfaceName.trim()
+    : interfaceSearchValue.trim();
+  const filteredToEmails = DUMMY_TO_EMAILS.filter((email) =>
+    email.toLowerCase().includes(toInputValue.trim().toLowerCase())
+  );
+
+  useEffect(() => {
+    const nextSubject = buildAutomaticSubject({
+      trustName: selectedTrustName,
+      selectedType,
+      interfaceName: selectedInterfaceName,
+    });
+
+    setSubject(nextSubject);
+    if (nextSubject && errors.subject) {
+      setErrors((prev) => ({ ...prev, subject: null }));
+    }
+  }, [selectedTrustName, selectedType, selectedInterfaceName, errors.subject]);
+
+  useEffect(() => {
+    const nextBody = buildAutomaticBody({
+      selectedType,
+      interfaceName: selectedInterfaceName,
+    });
+    const currentBody = editorRef.current?.innerText?.trim() || bodyValue.trim();
+    const previousAutomaticBody = lastAutomaticBodyRef.current.trim();
+    const canReplaceBody = !currentBody || currentBody === previousAutomaticBody;
+
+    if (canReplaceBody) {
+      if (editorRef.current) {
+        editorRef.current.innerText = nextBody;
+      }
+
+      setBodyValue(nextBody);
+      if (nextBody && errors.body) {
+        setErrors((prev) => ({ ...prev, body: null }));
+      }
+    }
+
+    lastAutomaticBodyRef.current = nextBody;
+  }, [selectedType, selectedInterfaceName, errors.body]);
+
+  const createCustomInterfacePayload = () => {
+    const trustId = Number(selectedTrustId);
+    const interfaceName = customInterfaceName.trim();
+
+    if (selectedType === TYPE_OPTIONS.IDLE_TIME) {
+      return {
+        serviceName: interfaceName,
+        trustId,
+        trustName: selectedTrustName,
+        dayIdleTime: 30,
+        nightIdleTime: 30,
+        weDayIdleTime: 30,
+        weNightIdleTime: 30,
+        isMondayIgnore: false,
+        isCritical: true,
+        deleted: false,
+      };
+    }
+
+    return {
+      endpointName: interfaceName,
+      interfaceName,
+      isCritical: true,
+      deleted: false,
+      trustId,
+      trustName: selectedTrustName,
+    };
+  };
+
+  const ensureCustomInterfaceCreated = async () => {
+    const trimmedInterfaceName = customInterfaceName.trim();
+
+    if (
+      !isOtherInterface ||
+      !selectedTrustId ||
+      !selectedType ||
+      !trimmedInterfaceName ||
+      customInterfaceSaving
+    ) {
+      return;
+    }
+
+    const saveKey = [
+      selectedTrustId,
+      selectedType,
+      trimmedInterfaceName.toLowerCase(),
+    ].join("|");
+
+    if (customInterfaceSaveKeyRef.current === saveKey) {
+      return;
+    }
+
+    try {
+      setCustomInterfaceSaving(true);
+      customInterfaceSaveKeyRef.current = saveKey;
+
+      const response = await createCriticalInterface({
+        interfaceType: INTERFACE_TYPE_BY_EMAIL_TYPE[selectedType],
+        payload: createCustomInterfacePayload(),
+      });
+      const createdInterface = getCreatedInterfaceFromApiResponse(response);
+      const createdId =
+        createdInterface?.id ??
+        createdInterface?.interfaceId ??
+        createdInterface?.interface_id;
+
+      if (createdId !== undefined && createdId !== null) {
+        const nextInterface = {
+          id: String(createdId),
+          name: trimmedInterfaceName,
+        };
+
+        setSelectedInterfaceId(nextInterface.id);
+        setInterfaceSearchValue(nextInterface.name);
+        setCustomInterfaceName("");
+        setInterfaceOptions((prev) => {
+          const withoutDuplicate = prev.filter(
+            (item) => String(item.id) !== nextInterface.id
+          );
+
+          return [...withoutDuplicate, nextInterface].sort((a, b) =>
+            a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+          );
+        });
+      }
+    } catch (err) {
+      console.error("Custom interface create failed:", err);
+      customInterfaceSaveKeyRef.current = "";
+      setErrors((prev) => ({
+        ...prev,
+        interfaceName: err.message || "Failed to create custom interface",
+      }));
+    } finally {
+      setCustomInterfaceSaving(false);
+    }
+  };
 
   const validateUpTo = (field) => {
     const newErrors = {};
     const draftTo = getDraftToEmails();
     const draftCc = getDraftCcEmails();
+
+    if (!selectedTrustId) {
+      newErrors.trust = "Trust is required";
+    }
+    if (field === "trust") {
+      setErrors((prev) => ({ ...prev, ...newErrors }));
+      return;
+    }
+
+    if (!selectedType) {
+      newErrors.type = "Type is required";
+    }
+    if (field === "type") {
+      setErrors((prev) => ({ ...prev, ...newErrors }));
+      return;
+    }
+
+    if (!selectedInterfaceId) {
+      newErrors.interfaceName = "Interface is required";
+    } else if (isOtherInterface && !customInterfaceName.trim()) {
+      newErrors.interfaceName = "Custom interface name is required";
+    }
+    if (field === "interfaceName") {
+      setErrors((prev) => ({ ...prev, ...newErrors }));
+      return;
+    }
 
     if (draftTo.length === 0) {
       newErrors.to = "At least one recipient is required";
@@ -123,6 +451,20 @@ const SendMail = () => {
     const draftTo = getDraftToEmails();
     const draftCc = getDraftCcEmails();
 
+    if (!selectedTrustId) {
+      newErrors.trust = "Trust is required";
+    }
+
+    if (!selectedType) {
+      newErrors.type = "Type is required";
+    }
+
+    if (!selectedInterfaceId) {
+      newErrors.interfaceName = "Interface is required";
+    } else if (isOtherInterface && !customInterfaceName.trim()) {
+      newErrors.interfaceName = "Custom interface name is required";
+    }
+
     if (draftTo.length === 0) {
       newErrors.to = "At least one recipient is required";
     } else if (!hasOnlyValidEmails(draftTo)) {
@@ -153,14 +495,51 @@ const SendMail = () => {
       draftTo.length > 0 &&
         hasOnlyValidEmails(draftTo) &&
         hasOnlyValidEmails(draftCc) &&
+        Boolean(selectedTrustId) &&
+        Boolean(selectedType) &&
+        hasSelectedInterface &&
         subject.trim() &&
         bodyValue.trim()
     );
-  }, [to, cc, toInputValue, ccInputValue, subject, bodyValue]);
+  }, [
+    to,
+    cc,
+    toInputValue,
+    ccInputValue,
+    selectedTrustId,
+    selectedType,
+    selectedInterfaceId,
+    customInterfaceName,
+    subject,
+    bodyValue,
+    hasSelectedInterface,
+  ]);
 
   /* ================= FORMAT ================= */
   const handleFormat = (cmd, value = null) => {
     document.execCommand(cmd, false, value);
+  };
+
+  const handleToFocus = () => {
+    setShowToDropdown(true);
+    ensureCustomInterfaceCreated();
+  };
+
+  const handleToOptionToggle = (email) => {
+    setTo((prev) =>
+      prev.includes(email)
+        ? prev.filter((selectedEmail) => selectedEmail !== email)
+        : [...prev, email]
+    );
+    setToInputValue("");
+    if (errors.to) {
+      setErrors((prev) => ({ ...prev, to: null }));
+    }
+  };
+
+  const handleBodyFocus = () => {
+    validateUpTo("subject");
+    setShowBodyTooltip(true);
   };
 
   /* ================= SUBMIT ================= */
@@ -201,6 +580,14 @@ const SendMail = () => {
       setBodyValue("");
       setToInputValue("");
       setCcInputValue("");
+      setSelectedTrustId("");
+      setSelectedType("");
+      setSelectedInterfaceId("");
+      setCustomInterfaceName("");
+      setInterfaceOptions([]);
+      setInterfaceSearchValue("");
+      setShowInterfaceDropdown(false);
+      lastAutomaticBodyRef.current = "";
       setErrors({});
       editorRef.current.innerHTML = "";
     } catch {
@@ -220,6 +607,12 @@ const SendMail = () => {
       if (ccInputRef.current && !ccInputRef.current.contains(e.target)) {
         setShowCcDropdown(false);
       }
+      if (
+        interfaceInputRef.current &&
+        !interfaceInputRef.current.contains(e.target)
+      ) {
+        setShowInterfaceDropdown(false);
+      }
     };
 
     document.addEventListener("mousedown", handler);
@@ -237,6 +630,160 @@ const SendMail = () => {
       )}
 
       <form onSubmit={handleSubmit} className="form" noValidate>
+        <div className="form-group">
+          <label>Trust:</label>
+          <select
+            value={selectedTrustId}
+            className={errors.trust ? "input-invalid" : ""}
+            onChange={(e) => {
+              setSelectedTrustId(e.target.value);
+              if (errors.trust) {
+                setErrors((prev) => ({ ...prev, trust: null }));
+              }
+            }}
+            onBlur={() => validateUpTo("trust")}
+          >
+            <option value="">Select trust</option>
+            {trustOptions.map((trust) => (
+              <option key={trust.id} value={trust.id}>
+                {trust.name}
+              </option>
+            ))}
+          </select>
+          {errors.trust && <span className="input-error">{errors.trust}</span>}
+        </div>
+
+        <div className="form-group">
+          <label>Type:</label>
+          <select
+            value={selectedType}
+            className={errors.type ? "input-invalid" : ""}
+            onChange={(e) => {
+              setSelectedType(e.target.value);
+              if (errors.type) {
+                setErrors((prev) => ({ ...prev, type: null }));
+              }
+            }}
+            onBlur={() => validateUpTo("type")}
+            disabled={!selectedTrustId}
+          >
+            <option value="">
+              {selectedTrustId ? "Select type" : "Select trust first"}
+            </option>
+            <option value={TYPE_OPTIONS.QUEUE}>Queue</option>
+            <option value={TYPE_OPTIONS.IDLE_TIME}>Idle time</option>
+          </select>
+          {errors.type && <span className="input-error">{errors.type}</span>}
+        </div>
+
+        <div className="form-group">
+          <label>Interface:</label>
+          <div className="dropdown-input" ref={interfaceInputRef}>
+            <input
+              type="text"
+              value={interfaceSearchValue}
+              className={errors.interfaceName ? "input-invalid" : ""}
+              onFocus={() => {
+                if (selectedTrustId && selectedType) {
+                  setShowInterfaceDropdown(true);
+                }
+              }}
+              onChange={(e) => {
+                setInterfaceSearchValue(e.target.value);
+                setSelectedInterfaceId("");
+                setCustomInterfaceName("");
+                if (selectedTrustId && selectedType) {
+                  setShowInterfaceDropdown(true);
+                }
+                if (errors.interfaceName) {
+                  setErrors((prev) => ({ ...prev, interfaceName: null }));
+                }
+              }}
+              onBlur={() => validateUpTo("interfaceName")}
+              placeholder={
+                !selectedTrustId || !selectedType
+                  ? "Select trust and type first"
+                  : lookupLoading
+                  ? "Loading..."
+                  : "Search interface"
+              }
+              disabled={!selectedTrustId || !selectedType || lookupLoading}
+            />
+
+            {showInterfaceDropdown && selectedTrustId && selectedType && (
+              <div className="dropdown-list">
+                {filteredInterfaceOptions.map((item) => (
+                  <div
+                    key={item.id}
+                    className="dropdown-item"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setSelectedInterfaceId(String(item.id));
+                      setInterfaceSearchValue(item.name);
+                      setCustomInterfaceName("");
+                      setShowInterfaceDropdown(false);
+                      if (errors.interfaceName) {
+                        setErrors((prev) => ({
+                          ...prev,
+                          interfaceName: null,
+                        }));
+                      }
+                    }}
+                  >
+                    {item.name}
+                  </div>
+                ))}
+
+                <div
+                  className="dropdown-item"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setSelectedInterfaceId(OTHER_INTERFACE_VALUE);
+                    setInterfaceSearchValue("Others");
+                    setShowInterfaceDropdown(false);
+                    if (errors.interfaceName) {
+                      setErrors((prev) => ({
+                        ...prev,
+                        interfaceName: null,
+                      }));
+                    }
+                  }}
+                >
+                  Others
+                </div>
+
+                {!filteredInterfaceOptions.length && (
+                  <div className="dropdown-item dropdown-item-disabled">
+                    No interfaces found
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          {errors.interfaceName && (
+            <span className="input-error">{errors.interfaceName}</span>
+          )}
+        </div>
+
+        {isOtherInterface && (
+          <div className="form-group">
+            <label>Custom Interface Name:</label>
+            <input
+              type="text"
+              value={customInterfaceName}
+              className={errors.interfaceName ? "input-invalid" : ""}
+              onChange={(e) => {
+                setCustomInterfaceName(e.target.value);
+                if (errors.interfaceName) {
+                  setErrors((prev) => ({ ...prev, interfaceName: null }));
+                }
+              }}
+              onBlur={() => validateUpTo("interfaceName")}
+              placeholder="Enter interface name"
+            />
+          </div>
+        )}
+
         {/* TO */}
         <div className="form-group">
           <label>To:</label>
@@ -255,7 +802,8 @@ const SendMail = () => {
             <input
               value={toInputValue}
               className={errors.to ? "input-invalid" : ""}
-              onFocus={() => setShowToDropdown(true)}
+              onFocus={handleToFocus}
+              onClick={() => setShowToDropdown(true)}
               onChange={(e) => {
                 setToInputValue(e.target.value);
                 if (errors.to) {
@@ -263,26 +811,36 @@ const SendMail = () => {
                 }
               }}
               onBlur={() => validateUpTo("to")}
-              placeholder="Enter email"
+              placeholder={
+                customInterfaceSaving
+                  ? "Creating interface..."
+                  : to.length
+                  ? "Search recipients"
+                  : "Select recipients"
+              }
             />
             {showToDropdown && (
-              <div className="dropdown-list">
-                {filteredEmails.map((email, i) => (
-                  <div
-                    key={i}
-                    className="dropdown-item"
-                    onClick={() => {
-                      setTo([...to, email]);
-                      setToInputValue("");
-                      setShowToDropdown(false);
-                      if (errors.to) {
-                        setErrors((prev) => ({ ...prev, to: null }));
-                      }
-                    }}
+              <div className="dropdown-list multi-select-list">
+                {filteredToEmails.map((email) => (
+                  <label
+                    key={email}
+                    className="dropdown-item multi-select-item"
+                    onMouseDown={(e) => e.preventDefault()}
                   >
-                    {email}
-                  </div>
+                    <input
+                      type="checkbox"
+                      checked={to.includes(email)}
+                      onChange={() => handleToOptionToggle(email)}
+                    />
+                    <span>{email}</span>
+                  </label>
                 ))}
+
+                {!filteredToEmails.length && (
+                  <div className="dropdown-item dropdown-item-disabled">
+                    No recipients found
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -291,7 +849,7 @@ const SendMail = () => {
 
         {/* CC */}
         <div className="form-group">
-          <label>CC:</label>
+          <label>CC (Optional):</label>
           <div className="dropdown-input" ref={ccInputRef}>
             {cc.map((email, i) => (
               <span key={i} className="selected-email">
@@ -329,18 +887,33 @@ const SendMail = () => {
             value={subject}
             className={errors.subject ? "input-invalid" : ""}
             onFocus={() => validateUpTo("cc")}
-            onChange={(e) => {
-              setSubject(e.target.value);
-              if (errors.subject) {
-                setErrors((prev) => ({ ...prev, subject: null }));
-              }
-            }}
+            readOnly
             onBlur={() => validateUpTo("subject")}
-            placeholder="Enter subject"
+            placeholder="Subject will be generated automatically"
           />
           {errors.subject && (
             <span className="input-error">{errors.subject}</span>
           )}
+        </div>
+
+        <div className="body-editor-header">
+          <label>Body:</label>
+          <div className="body-helper">
+            <button
+              type="button"
+              className="body-helper-icon"
+              aria-label="Body customization help"
+              onClick={() => setShowBodyTooltip((prev) => !prev)}
+            >
+              <FontAwesomeIcon icon={faCircleInfo} />
+            </button>
+            {showBodyTooltip && (
+              <div className="body-tooltip" role="tooltip">
+                This body is auto-filled from the selected type and interface.
+                You can customize it before sending.
+              </div>
+            )}
+          </div>
         </div>
 
         {/* TOOLBAR */}
@@ -373,14 +946,18 @@ const SendMail = () => {
           ref={editorRef}
           contentEditable
           className={`editor ${errors.body ? "input-invalid" : ""}`}
-          onFocus={() => validateUpTo("subject")}
+          onFocus={handleBodyFocus}
+          onClick={() => setShowBodyTooltip(true)}
           onInput={() => {
             setBodyValue(getEditorText());
             if (errors.body) {
               setErrors((prev) => ({ ...prev, body: null }));
             }
           }}
-          onBlur={validateAll}
+          onBlur={() => {
+            validateAll();
+            setShowBodyTooltip(false);
+          }}
         />
         {errors.body && <span className="input-error">{errors.body}</span>}
 

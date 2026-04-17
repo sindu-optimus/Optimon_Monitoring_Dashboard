@@ -385,7 +385,28 @@ const SupportActions = ({ isAdminUser = false, userProfile = null }) => {
       return;
     }
 
-    fetchActions();
+    const today = getTodayDateInputValue();
+    const from = formatDateInputValue(
+      getPastDaysCutoff(SUPPORT_ACTION_LOOKBACK_DAYS)
+    );
+
+    setFromDate(from);
+    setToDate(today);
+
+    setAppliedFromDate(from);
+    setAppliedToDate(today);
+
+    const params = buildSupportActionQueryParams({
+      fromDate: from,
+      toDate: today,
+      trustId: selectedTrustId,
+      status: selectedStatus,
+      todayDateValue,
+      page: 0,
+      size: pageSize,
+    });
+
+    fetchActions(params);
   }, [issueId, isDetailView]);
 
   useEffect(() => {

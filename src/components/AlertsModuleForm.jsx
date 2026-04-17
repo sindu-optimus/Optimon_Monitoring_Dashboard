@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   createCriticalInterface,
   updateCriticalInterface,
-} from "../api/metricsService";
+} from "../api/criticalInterfacesService";
 import "./TrustForm.css";
-import "./CriticalInterfaceForm.css";
+import "./AlertsModuleForm.css";
 
 const VIEW_OPTIONS = {
   INBOUND: "INBOUND",
@@ -91,6 +91,11 @@ const createInitialForm = (initial, defaultTrustId, defaultView) => ({
     "isMondayIgnore",
     "mondayIgnore",
   ]),
+  isCritical: getBooleanValue(initial?.rawItem, [
+    "isCritical",
+    "critical",
+    "is_critical",
+  ], true),
   deleted: getBooleanValue(initial?.rawItem, ["deleted", "isDeleted"], false),
   interfaceName: getFirstDefinedValue(initial?.rawItem, [
     "endpointName",
@@ -101,7 +106,7 @@ const createInitialForm = (initial, defaultTrustId, defaultView) => ({
   ]),
 });
 
-export default function CriticalInterfaceForm({
+export default function AlertsModuleForm({
   initial = null,
   trusts = [],
   defaultTrustId = "",
@@ -339,12 +344,14 @@ export default function CriticalInterfaceForm({
           weDayIdleTime: Number(form.weekendInside.trim()),
           weNightIdleTime: Number(form.weekendOutside.trim()),
           isMondayIgnore: Boolean(form.isMondayIgnore),
+          isCritical: Boolean(form.isCritical),
           deleted: Boolean(form.deleted),
         }
       : {
           ...(initial?.rawItem || {}),
           endpointName: form.interfaceName.trim(),
           interfaceName: form.interfaceName.trim(),
+          isCritical: Boolean(form.isCritical),
           deleted: Boolean(form.deleted),
           trustId,
           trustName: selectedTrustName,
@@ -354,28 +361,28 @@ export default function CriticalInterfaceForm({
       setLoading(true);
 
       if (isEditMode) {
-        console.log("Critical interface update payload:", payload);
+        console.log("AlertsModule update payload:", payload);
         await updateCriticalInterface({
           trustId,
           interfaceType: form.interfaceType,
           interfaceId: initial.id,
           payload,
         });
-        setSuccess("Critical interface updated successfully");
+        setSuccess("AlertsModule updated successfully");
       } else {
-        console.log("Critical interface create payload:", payload);
+        console.log("AlertsModule create payload:", payload);
         await createCriticalInterface({
           trustId,
           interfaceType: form.interfaceType,
           payload,
         });
-        setSuccess("Critical interface created successfully");
+        setSuccess("AlertsModule created successfully");
       }
 
       onSuccess?.(form.interfaceType);
     } catch (submitError) {
-      console.error("Critical interface save failed:", submitError);
-      setError(submitError.message || "Failed to save critical interface");
+      console.error("AlertsModule save failed:", submitError);
+      setError(submitError.message || "Failed to save AlertsModule");
     } finally {
       setLoading(false);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -385,7 +392,7 @@ export default function CriticalInterfaceForm({
   return (
     <div className="content">
       <h2 className="form-title">
-        {isEditMode ? "Edit Critical Interface" : "Add Critical Interface"}
+        {isEditMode ? "Edit Interface Alert" : "Add Interface Alert"}
       </h2>
 
       <div className="critical-form-actions">
@@ -398,7 +405,7 @@ export default function CriticalInterfaceForm({
           className="critical-list-btn"
           onClick={onCancel}
         >
-          List of Critical Interfaces
+          List of Interface Alerts
         </button>
       </div>
 
@@ -573,6 +580,30 @@ export default function CriticalInterfaceForm({
               </div>
 
               <div className="col">
+                <label className="form-label">Is Critical</label>
+                <div className="toggle-group">
+                  <button
+                    type="button"
+                    className={`toggle-btn yes ${
+                      form.isCritical ? "active" : ""
+                    }`}
+                    onClick={() => handleChange("isCritical", true)}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    className={`toggle-btn no ${
+                      !form.isCritical ? "active" : ""
+                    }`}
+                    onClick={() => handleChange("isCritical", false)}
+                  >
+                    No
+                  </button>
+                </div>
+              </div>
+
+              <div className="col">
                 <label className="form-label">Alert</label>
                 <button
                   type="button"
@@ -608,6 +639,30 @@ export default function CriticalInterfaceForm({
             )}
 
             <div className="row critical-form-switch-row">
+              <div className="col">
+                <label className="form-label">Is Critical</label>
+                <div className="toggle-group">
+                  <button
+                    type="button"
+                    className={`toggle-btn yes ${
+                      form.isCritical ? "active" : ""
+                    }`}
+                    onClick={() => handleChange("isCritical", true)}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    className={`toggle-btn no ${
+                      !form.isCritical ? "active" : ""
+                    }`}
+                    onClick={() => handleChange("isCritical", false)}
+                  >
+                    No                  
+                  </button>
+                </div>
+              </div>
+
               <div className="col">
                 <label className="form-label">Alert</label>
                 <button

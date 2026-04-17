@@ -23,7 +23,7 @@ import AddUser from "./pages/admin/AddUser";
 import Profile from "./pages/admin/Profile";
 import SummaryInterfaces from "./pages/admin/SummaryInterfaces";
 import SettingsPage from "./pages/admin/SettingsPage";
-import CriticalInterfaces from "./pages/admin/CriticalInterfaces";
+import AlertsModule from "./pages/admin/AlertsModule";
 import SupportActions from "./pages/admin/SupportActions";
 
 import MessageBank from "./pages/shared/MessageBank";
@@ -75,6 +75,7 @@ export default function App() {
   const [allTrustData, setAllTrustData] = useState([]);
   const [trustIds, setTrustIds] = useState([]);
   const [trustList, setTrustList] = useState([]);
+  const [trustListLoaded, setTrustListLoaded] = useState(false);
   const isAdminUser =
     Number(loggedInUser?.roleId) === 1 ||
     String(loggedInUser?.role || "").toLowerCase() === "admin";
@@ -141,6 +142,7 @@ export default function App() {
 
   async function fetchTrustList() {
     try {
+      setTrustListLoaded(false);
       const res = await getTrusts();
       const trusts = filterTrustsByAccess(res.data || [], loggedInUser)
         .map((trust) => {
@@ -162,6 +164,8 @@ export default function App() {
     } catch (error) {
       console.error("Error fetching trust list:", error);
       setTrustList([]);
+    } finally {
+      setTrustListLoaded(true);
     }
   }
 
@@ -209,14 +213,14 @@ export default function App() {
   }, [isLoggedIn, loggedInUser]);
 
   useEffect(() => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || !trustListLoaded) return;
 
     const ids = allowedTrustIds.slice(0, Math.max(1, Number(gridCount) || 1));
     setTrustIds(ids);
     setAllTrustData([]);
 
     fetchTrustsProgressively(ids);
-  }, [isLoggedIn, allowedTrustIds, gridCount]);
+  }, [isLoggedIn, trustListLoaded, allowedTrustIds, gridCount]);
 
   /* ===================== GRID CHANGE ===================== */
   useEffect(() => {
@@ -360,6 +364,7 @@ export default function App() {
     setAllTrustData([]);
     setTrustIds([]);
     setTrustList([]);
+    setTrustListLoaded(false);
     sessionStorage.removeItem("sessionPassword");
     navigate("/login");
   };
@@ -514,7 +519,7 @@ export default function App() {
           <Route
             path="critical-interfaces"
             element={
-              <CriticalInterfaces
+              <AlertsModule
                 isAdminUser={isAdminUser}
                 userProfile={loggedInUser}
               />
