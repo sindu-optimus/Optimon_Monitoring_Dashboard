@@ -229,6 +229,8 @@ export default function AlertsModule({
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
   const [alertDialogRow, setAlertDialogRow] = useState(null);
   const [showBulkAlertDialog, setShowBulkAlertDialog] = useState(false);
+  const [showTrustSelectionDialog, setShowTrustSelectionDialog] =
+    useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
@@ -256,10 +258,6 @@ export default function AlertsModule({
 
         const trustList = filterTrustsByAccess(response.data || [], userProfile);
         setTrusts(trustList);
-
-        if (trustList.length > 0) {
-          setSelectedTrustId(String(trustList[0].id));
-        }
       } catch (loadError) {
         if (!isActive) return;
         console.error("Error fetching trusts:", loadError);
@@ -283,7 +281,7 @@ export default function AlertsModule({
       selectedTrustId &&
       !trusts.some((trust) => String(trust.id) === String(selectedTrustId))
     ) {
-      setSelectedTrustId(trusts[0] ? String(trusts[0].id) : "");
+      setSelectedTrustId("");
     }
   }, [selectedTrustId, trusts]);
 
@@ -292,10 +290,6 @@ export default function AlertsModule({
     view = selectedView,
     force = false,
   } = {}) => {
-    if (!trustId) {
-      return;
-    }
-
     if (!force && loadedViews[view]) {
       return;
     }
@@ -349,6 +343,10 @@ export default function AlertsModule({
       );
       const selectedTrustName = selectedTrust?.name;
       const inboundItems = criticalInboundReceivers.filter((item) => {
+        if (!selectedTrustId) {
+          return true;
+        }
+
         const itemTrustId = getTrustIdFromItem(item);
         if (itemTrustId !== undefined && itemTrustId !== null) {
           return String(itemTrustId) === String(selectedTrustId);
@@ -399,6 +397,10 @@ export default function AlertsModule({
     }
 
     const queueItems = criticalInterfaces.filter((item) => {
+      if (!selectedTrustId) {
+        return true;
+      }
+
       const itemTrustId = getTrustIdFromItem(item);
       if (itemTrustId !== undefined && itemTrustId !== null) {
         return String(itemTrustId) === String(selectedTrustId);
@@ -683,6 +685,10 @@ export default function AlertsModule({
 
   const openBulkAlertDialog = () => {
     if (tableRows.length === 0) return;
+    if (!selectedTrustId) {
+      setShowTrustSelectionDialog(true);
+      return;
+    }
     setShowBulkAlertDialog(true);
   };
 
@@ -690,15 +696,33 @@ export default function AlertsModule({
     setShowBulkAlertDialog(false);
   };
 
+  const closeTrustSelectionDialog = () => {
+    setShowTrustSelectionDialog(false);
+  };
+
   const confirmBulkAlertChange = async () => {
     try {
       setError("");
       const nextDeletedStatus = !allAlertsEnabled;
 
+      console.log("[AlertsModule] Bulk alert change:", {
+        trustId: selectedTrustId,
+        trustName: selectedTrustName,
+        view: selectedView,
+        isDeleted: nextDeletedStatus,
+        action: nextDeletedStatus ? "enable_all" : "disable_all",
+      });
+
       if (selectedView === VIEW_OPTIONS.INBOUND) {
-        await updateAllCriticalInboundReceiverAlerts(nextDeletedStatus);
+        await updateAllCriticalInboundReceiverAlerts({
+          isDeleted: nextDeletedStatus,
+          trustId: selectedTrustId,
+        });
       } else {
-        await updateAllCriticalInterfaceAlerts(nextDeletedStatus);
+        await updateAllCriticalInterfaceAlerts({
+          isDeleted: nextDeletedStatus,
+          trustId: selectedTrustId,
+        });
       }
 
       setShowBulkAlertDialog(false);
@@ -754,16 +778,19 @@ export default function AlertsModule({
             className="critical-select"
             value={selectedTrustId}
             onChange={(e) => setSelectedTrustId(e.target.value)}
-            disabled={trustLoading || trusts.length === 0}
+            disabled={trusts.length === 0}
           >
             {trusts.length === 0 ? (
-              <option value="">No interfaces available</option>
+              <option value="">All Trusts</option>
             ) : (
-              trusts.map((trust) => (
-                <option key={trust.id} value={trust.id}>
-                  {trust.name}
-                </option>
-              ))
+              <>
+                <option value="">All Trusts</option>
+                {trusts.map((trust) => (
+                  <option key={trust.id} value={trust.id}>
+                    {trust.name}
+                  </option>
+                ))}
+              </>
             )}
           </select>
         </div>
@@ -825,6 +852,8 @@ export default function AlertsModule({
               title={
                 tableRows.length === 0
                   ? "No interfaces available"
+                  : !selectedTrustId
+                  ? "Select a trust to change all alerts"
                   : allAlertsEnabled
                   ? "Disable all alerts"
                   : "Enable all alerts"
@@ -1162,6 +1191,27 @@ export default function AlertsModule({
                 onClick={confirmBulkAlertChange}
               >
                 Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTrustSelectionDialog && (
+        <div className="critical-modal-overlay" role="dialog" aria-modal="true">
+          <div className="critical-modal">
+            <h3>Select One Trust</h3>
+            <p>
+              Bulk enable or disable is available only for a single trust.
+              Please select one trust and try again.
+            </p>
+            <div className="critical-modal-actions">
+              <button
+                type="button"
+                className="critical-modal-confirm"
+                onClick={closeTrustSelectionDialog}
+              >
+                OK
               </button>
             </div>
           </div>

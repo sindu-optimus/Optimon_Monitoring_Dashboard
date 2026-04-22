@@ -34,7 +34,7 @@ const sendCriticalApiRequest = async ({
     body: getRequestBodyForLog(options.body),
   };
 
-  console.log("[CriticalInterfaces API] Request:", logDetails);
+  // console.log("[CriticalInterfaces API] Request:", logDetails);
 
   try {
     const response = await fetch(url, {
@@ -63,11 +63,11 @@ const sendCriticalApiRequest = async ({
       throw new Error(errorMessage);
     }
 
-    console.log("[CriticalInterfaces API] Response:", {
-      ...logDetails,
-      status: response.status,
-      response: responseData,
-    });
+    // console.log("[CriticalInterfaces API] Response:", {
+    //   ...logDetails,
+    //   status: response.status,
+    //   response: responseData,
+    // });
 
     return responseData;
   } catch (error) {
@@ -175,9 +175,19 @@ export const updateCriticalInboundReceiverAlert = async (id, isDeleted) => {
   );
 };
 
-export const updateAllCriticalInboundReceiverAlerts = async (isDeleted) => {
+export const updateAllCriticalInboundReceiverAlerts = async ({
+  isDeleted,
+  trustId,
+} = {}) => {
+  const searchParams = new URLSearchParams();
+  searchParams.set("isDeleted", String(Boolean(isDeleted)));
+
+  if (trustId !== undefined && trustId !== null && trustId !== "") {
+    searchParams.set("trustId", String(trustId));
+  }
+
   return sendCriticalInboundReceiverRequest(
-    `/update-all-alerts?isDeleted=${encodeURIComponent(Boolean(isDeleted))}`,
+    `/update-all-alerts?${searchParams.toString()}`,
     {
       method: "PUT",
     }
@@ -214,9 +224,19 @@ export const deleteCriticalInterfaceRecord = async (id) => {
   });
 };
 
-export const updateAllCriticalInterfaceAlerts = async (isDeleted) => {
+export const updateAllCriticalInterfaceAlerts = async ({
+  isDeleted,
+  trustId,
+} = {}) => {
+  const searchParams = new URLSearchParams();
+  searchParams.set("isDeleted", String(Boolean(isDeleted)));
+
+  if (trustId !== undefined && trustId !== null && trustId !== "") {
+    searchParams.set("trustId", String(trustId));
+  }
+
   return sendCriticalInterfaceRequest(
-    `/update-all-isdeleted?isDeleted=${encodeURIComponent(Boolean(isDeleted))}`,
+    `/update-all-isdeleted?${searchParams.toString()}`,
     {
       method: "PUT",
     }

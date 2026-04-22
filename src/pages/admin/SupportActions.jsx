@@ -44,6 +44,18 @@ const formatDateInputValue = (date) => {
   ].join("-");
 };
 
+const addDaysToDateInputValue = (value, days) => {
+  const date = parseDateInputValue(value);
+
+  if (!date) {
+    return value;
+  }
+
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return formatDateInputValue(nextDate);
+};
+
 const parseDateInputValue = (value) => {
   if (!value) return null;
 
@@ -250,7 +262,7 @@ const buildSupportActionQueryParams = ({
 
   if (fromDate) {
     params.fromDate = fromDate;
-    params.toDate = toDate || todayDateValue;
+    params.toDate = addDaysToDateInputValue(toDate || todayDateValue, 1);
   }
 
   if (trustId) {

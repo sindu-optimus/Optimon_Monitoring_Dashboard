@@ -134,6 +134,8 @@ const SendMail = () => {
   const [showInterfaceDropdown, setShowInterfaceDropdown] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [customInterfaceSaving, setCustomInterfaceSaving] = useState(false);
+  const [showCreateInterfaceDialog, setShowCreateInterfaceDialog] =
+    useState(false);
 
   const [errors, setErrors] = useState({});
   const [isFormValid, setIsFormValid] = useState(false);
@@ -314,7 +316,7 @@ const SendMail = () => {
     };
   };
 
-  const ensureCustomInterfaceCreated = async () => {
+  const createCustomInterface = async () => {
     const trimmedInterfaceName = customInterfaceName.trim();
 
     if (
@@ -351,6 +353,8 @@ const SendMail = () => {
         createdInterface?.interfaceId ??
         createdInterface?.interface_id;
 
+      console.log("[SendMail] Created custom interface:", createdInterface);
+
       if (createdId !== undefined && createdId !== null) {
         const nextInterface = {
           id: String(createdId),
@@ -369,7 +373,11 @@ const SendMail = () => {
             a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
           );
         });
+
+        return nextInterface;
       }
+
+      return null;
     } catch (err) {
       console.error("Custom interface create failed:", err);
       customInterfaceSaveKeyRef.current = "";
@@ -522,7 +530,6 @@ const SendMail = () => {
 
   const handleToFocus = () => {
     setShowToDropdown(true);
-    ensureCustomInterfaceCreated();
   };
 
   const handleToOptionToggle = (email) => {
@@ -542,12 +549,7 @@ const SendMail = () => {
     setShowBodyTooltip(true);
   };
 
-  /* ================= SUBMIT ================= */
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!validateAll()) return;
-
+  const sendEmail = async () => {
     const finalTo = getDraftToEmails();
     const finalCc = getDraftCcEmails();
     const body = editorRef.current?.innerHTML || "";
@@ -559,43 +561,76 @@ const SendMail = () => {
       body,
     };
 
-    try {
-      const res = await fetch(
-        "https://neevapi.ddns.net/api/nim/sendemail/v1",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
+    const res = await fetch("https://neevapi.ddns.net/api/nim/sendemail/v1", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-      if (!res.ok) throw new Error();
+    if (!res.ok) {
+      throw new Error("Failed to send email");
+    }
+  };
+
+  const resetForm = () => {
+    setTo([]);
+    setCc([]);
+    setSubject("");
+    setBodyValue("");
+    setToInputValue("");
+    setCcInputValue("");
+    setSelectedTrustId("");
+    setSelectedType("");
+    setSelectedInterfaceId("");
+    setCustomInterfaceName("");
+    setInterfaceOptions([]);
+    setInterfaceSearchValue("");
+    setShowInterfaceDropdown(false);
+    setShowCreateInterfaceDialog(false);
+    lastAutomaticBodyRef.current = "";
+    setErrors({});
+
+    if (editorRef.current) {
+      editorRef.current.innerHTML = "";
+    }
+  };
+
+  const handleConfirmedSubmit = async () => {
+    try {
+      if (isOtherInterface) {
+        const createdInterface = await createCustomInterface();
+
+        if (!createdInterface) {
+          return;
+        }
+      }
+
+      setShowCreateInterfaceDialog(false);
+      await sendEmail();
 
       setResponseMessage("Email sent successfully.");
       setResponseType("success");
-
-      setTo([]);
-      setCc([]);
-      setSubject("");
-      setBodyValue("");
-      setToInputValue("");
-      setCcInputValue("");
-      setSelectedTrustId("");
-      setSelectedType("");
-      setSelectedInterfaceId("");
-      setCustomInterfaceName("");
-      setInterfaceOptions([]);
-      setInterfaceSearchValue("");
-      setShowInterfaceDropdown(false);
-      lastAutomaticBodyRef.current = "";
-      setErrors({});
-      editorRef.current.innerHTML = "";
+      resetForm();
     } catch {
       setResponseMessage("Failed to send email.");
       setResponseType("error");
     }
 
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  /* ================= SUBMIT ================= */
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validateAll()) return;
+
+    if (isOtherInterface) {
+      setShowCreateInterfaceDialog(true);
+      return;
+    }
+
+    await handleConfirmedSubmit();
   };
 
   /* ================= OUTSIDE CLICK ================= */
@@ -620,7 +655,7 @@ const SendMail = () => {
   }, []);
 
   return (
-    <div className="content">
+    <div className="content send-mail-page">
       <h2>Compose Mail</h2>
 
       {responseMessage && (
@@ -711,7 +746,7 @@ const SendMail = () => {
             />
 
             {showInterfaceDropdown && selectedTrustId && selectedType && (
-              <div className="dropdown-list">
+              <div className="dropdown-list interface-dropdown-list">
                 {filteredInterfaceOptions.map((item) => (
                   <div
                     key={item.id}
@@ -965,6 +1000,36 @@ const SendMail = () => {
           Send Mail
         </button>
       </form>
+
+      {showCreateInterfaceDialog && (
+        <div className="send-mail-modal-overlay" role="dialog" aria-modal="true">
+          <div className="send-mail-modal">
+            <h3>Create New Interface</h3>
+            <p>
+              This interface is not in the list. Do you want to create a new interface
+              <strong> {customInterfaceName.trim()}</strong>?
+            </p>
+            <div className="send-mail-modal-actions">
+              <button 
+                type="button"
+                className="send-mail-modal-cancel"
+                onClick={() => setShowCreateInterfaceDialog(false)}
+                disabled={customInterfaceSaving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="send-mail-modal-confirm"
+                onClick={handleConfirmedSubmit}
+                disabled={customInterfaceSaving}
+              >
+                {customInterfaceSaving ? "Creating..." : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

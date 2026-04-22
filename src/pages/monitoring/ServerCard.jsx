@@ -8,6 +8,7 @@ export default function ServerCard({
   serverName,
   queues = [],
   endpoints = [],
+  noQueues = false,
   noPendingServices = false,
   bgColor = "#fff",
   lastUpdated = null,
@@ -35,8 +36,13 @@ export default function ServerCard({
 
   const hasBackendNoPending = useMemo(() => {
     return queues.some((q) => {
-      const val = String(q.pending || "").toLowerCase();
-      return val.includes("no pending");
+      const pendingValue = String(q.pending || "").toLowerCase();
+      const queueName = String(q.name || q.queueName || "").toLowerCase();
+
+      return (
+        pendingValue.includes("no pending") ||
+        queueName.includes("no pending")
+      );
     });
   }, [queues]);
 
@@ -275,7 +281,7 @@ export default function ServerCard({
         <div className="queue-section">
 
           {/* BACKEND: NO PENDING */}
-          {hasBackendNoPending ? (
+          {noQueues || hasBackendNoPending ? (
             <div className="cardEmptyState">
               <i className="ri-checkbox-circle-fill"></i>
 
