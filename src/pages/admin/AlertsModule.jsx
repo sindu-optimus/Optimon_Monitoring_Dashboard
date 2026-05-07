@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 import AlertsModuleForm from "../../components/AlertsModuleForm";
 import {
   deleteCriticalInterface,
@@ -39,6 +40,11 @@ const INBOUND_COLUMNS = [
     key: "serviceName",
     label: "Inbound Name",
     getters: ["serviceName", "interfaceName", "interface_name", "name"],
+  },
+  {
+    key: "aliasName",
+    label: "Alias Name",
+    getters: ["aliasName", "alias_name", "alias"],
   },
   {
     key: "weekDayInside",
@@ -233,6 +239,7 @@ export default function AlertsModule({
     useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [exportLoading, setExportLoading] = useState(false);
 
   const isAlertEnabled = (row) =>
     getBooleanValue(row?.rawItem, ["deleted", "isDeleted"], false);
@@ -370,7 +377,7 @@ export default function AlertsModule({
       });
 
       return sortedInboundItems.map((item, index) => {
-        const isMondayIgnoreBool = getBooleanValue(item, INBOUND_COLUMNS[5].getters);
+        const isMondayIgnoreBool = getBooleanValue(item, INBOUND_COLUMNS[6].getters);
 
         return {
           id: item?.id ?? `inbound-${index}`,
@@ -379,10 +386,11 @@ export default function AlertsModule({
           rawItem: item,
           serialNo: index + 1,
           inboundName: getFirstValue(item, INBOUND_COLUMNS[0].getters),
-          weekDayInside: getFirstValue(item, INBOUND_COLUMNS[1].getters),
-          weekDayOutside: getFirstValue(item, INBOUND_COLUMNS[2].getters),
-          weekendInside: getFirstValue(item, INBOUND_COLUMNS[3].getters),
-          weekendOutside: getFirstValue(item, INBOUND_COLUMNS[4].getters),
+          aliasName: getFirstValue(item, INBOUND_COLUMNS[1].getters),
+          weekDayInside: getFirstValue(item, INBOUND_COLUMNS[2].getters),
+          weekDayOutside: getFirstValue(item, INBOUND_COLUMNS[3].getters),
+          weekendInside: getFirstValue(item, INBOUND_COLUMNS[4].getters),
+          weekendOutside: getFirstValue(item, INBOUND_COLUMNS[5].getters),
           isMondayIgnore: isMondayIgnoreBool ? "Yes" : "No",
           isCritical: getBooleanValue(item, [
             "isCritical",
@@ -451,6 +459,7 @@ export default function AlertsModule({
         "serviceName",
         "name",
       ]),
+      aliasName: getFirstValue(item, ["aliasName", "alias_name", "alias"]),
       isCritical: getBooleanValue(item, [
         "isCritical",
         "critical",
@@ -546,6 +555,109 @@ export default function AlertsModule({
   const handleNextPage = () => {
     if (!canGoNext) return;
     setCurrentPage((prev) => Math.min(prev + 1, totalPages - 1));
+  };
+
+  const downloadExcelFile = () => {
+    if (tableLoading || exportLoading || filteredTableRows.length === 0) {
+      return;
+    }
+
+    try {
+      setExportLoading(true);
+
+      const workbookRows =
+        selectedView === VIEW_OPTIONS.INBOUND
+          ? [
+              [
+                "S.No",
+                "Inbound Name",
+                "Alias Name",
+                "Idle time: Weekday (Inside business hours 09:00 AM to 07:00 PM)",
+                "Weekday (Outside Business 07:00 PM to 09:00 AM)",
+                "Idle time: Weekend (Inside business hours 09:00 AM to 07:00 PM)",
+                "Weekend (Outside Business 07:00 PM to 09:00 AM)",
+                "Is Monday ignore",
+                "IsCritical",
+                "Alert",
+                "UpdatedOn",
+              ],
+              ...filteredTableRows.map((row) => [
+                row.serialNo,
+                row.inboundName,
+                row.aliasName,
+                row.weekDayInside,
+                row.weekDayOutside,
+                row.weekendInside,
+                row.weekendOutside,
+                row.isMondayIgnore,
+                row.isCritical,
+                isAlertEnabled(row) ? "Enabled" : "Disabled",
+                row.updatedOn,
+              ]),
+            ]
+          : [
+              [
+                "S.No",
+                "Interface Name",
+                "Alias Name",
+                "IsCritical",
+                "Alert",
+                "UpdatedOn",
+              ],
+              ...filteredTableRows.map((row) => [
+                row.serialNo,
+                row.interfaceName,
+                row.aliasName,
+                row.isCritical,
+                isAlertEnabled(row) ? "Enabled" : "Disabled",
+                row.updatedOn,
+              ]),
+            ];
+
+      const worksheet = XLSX.utils.aoa_to_sheet(workbookRows);
+      worksheet["!cols"] =
+        selectedView === VIEW_OPTIONS.INBOUND
+          ? [
+              { wch: 8 },
+              { wch: 32 },
+              { wch: 24 },
+              { wch: 28 },
+              { wch: 28 },
+              { wch: 28 },
+              { wch: 28 },
+              { wch: 18 },
+              { wch: 12 },
+              { wch: 12 },
+              { wch: 22 },
+            ]
+          : [
+              { wch: 8 },
+              { wch: 32 },
+              { wch: 24 },
+              { wch: 12 },
+              { wch: 12 },
+              { wch: 22 },
+            ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Interface Alerts");
+
+      const safeViewName = selectedView.toLowerCase();
+      const safeTrustName = (selectedTrustName || "all-trusts")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+
+      XLSX.writeFile(
+        workbook,
+        `interface-alerts-${safeViewName}-${safeTrustName || "all-trusts"}.xlsx`
+      );
+    } catch (downloadError) {
+      console.error("Error downloading interface alerts:", downloadError);
+      setError("Unable to download Excel. Please try again later.");
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   const handleAddClick = () => {
@@ -756,6 +868,16 @@ export default function AlertsModule({
         <h2 className="critical-page-title">Interface Alerts</h2>
       </div>
       <div className="critical-actions">
+        <button
+          type="button"
+          className="critical-download-btn"
+          onClick={downloadExcelFile}
+          disabled={tableLoading || exportLoading || filteredTableRows.length === 0}
+        >
+          <i className="ri-file-excel-2-line" aria-hidden="true"></i>
+          {exportLoading ? "Downloading..." : "Download Excel"}
+        </button>
+
         {isAdminUser && (
           <button
             type="button"
@@ -913,6 +1035,7 @@ export default function AlertsModule({
               <tr>
                 <th>S.No</th>
                 <th>Interface Name</th>
+                <th>Alias Name</th>
                 <th>IsCritical</th>
                 <th className="critical-alert-col">Alert</th>
                 <th>UpdatedOn</th>
@@ -928,11 +1051,11 @@ export default function AlertsModule({
                   colSpan={
                     selectedView === VIEW_OPTIONS.INBOUND
                       ? isAdminUser
-                        ? 11
-                        : 10
+                        ? 12
+                        : 11
                       : isAdminUser
-                        ? 6
-                        : 5
+                        ? 7
+                        : 6
                   }
                   className="critical-empty-row"
                 >
@@ -947,11 +1070,11 @@ export default function AlertsModule({
                   colSpan={
                     selectedView === VIEW_OPTIONS.INBOUND
                       ? isAdminUser
-                        ? 11
-                        : 10
+                        ? 12
+                        : 11
                       : isAdminUser
-                        ? 6
-                        : 5
+                        ? 7
+                        : 6
                   }
                   className="critical-empty-row"
                 >
@@ -966,6 +1089,7 @@ export default function AlertsModule({
                   <tr key={row.id}>
                     <td>{row.serialNo}</td>
                     <td>{row.inboundName}</td>
+                    <td>{row.aliasName}</td>
                     <td>{row.weekDayInside}</td>
                     <td>{row.weekDayOutside}</td>
                     <td>{row.weekendInside}</td>
@@ -1030,6 +1154,7 @@ export default function AlertsModule({
                   <tr key={row.id}>
                     <td>{row.serialNo}</td>
                     <td>{row.interfaceName}</td>
+                    <td>{row.aliasName}</td>
                     <td>{row.isCritical}</td>
                     <td className="critical-alert-cell">
                       <button

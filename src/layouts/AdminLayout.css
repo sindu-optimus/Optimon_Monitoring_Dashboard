@@ -1,19 +1,71 @@
-/* Admin layout wrapper */
-.layout {
-  display: flex;
-  /* min-height: calc(100vh - 120px);  */
-  background: #f6f8fb;
+.admin-page-layout {
+  position: relative;
+  isolation: isolate;
+  background: #eef6fb;
 }
 
-/* .content {
-  flex: 1;              
-  padding: 24px;
-  overflow-x: hidden;
-} */
+.admin-bg-video {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  filter: brightness(0.85) saturate(1.1);
+  pointer-events: none;
+}
 
-.page-content {
+.admin-video-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgb(175 196 209 / 85%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.admin-page-layout .sidebar,
+.admin-page-layout .sidebar-toggle-btn {
+  z-index: 3;
+}
+
+.admin-page-content {
+  position: relative;
+  z-index: 2;
   flex: 1;
-  /* padding: 20px; */
-  background: #f8fafc;
+  min-width: 0;
+  height: 100%;
   overflow-x: auto;
+  overflow-y: auto;
+  background: transparent;
+}
+
+.admin-content-layer {
+  position: relative;
+  z-index: 1;
+  min-height: 100%;
+}
+
+.admin-page-layout .content {
+  padding: 32px 28px 40px;
+}
+
+.admin-page-layout .main-container,
+.admin-page-layout .settings-page,
+.admin-page-layout .form-root {
+  background: transparent;
+}
+
+.admin-page-layout .settings-page,
+.admin-page-layout .send-mail-page,
+.admin-page-layout .profile-page,
+.admin-page-layout .form-root {
+  padding-top: 32px;
+}
+
+@media (max-width: 767px) {
+  .admin-page-content {
+    padding-right: 0;
+  }
 }

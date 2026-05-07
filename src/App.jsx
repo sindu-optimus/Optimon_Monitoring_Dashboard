@@ -25,6 +25,7 @@ import SummaryInterfaces from "./pages/admin/SummaryInterfaces";
 import SettingsPage from "./pages/admin/SettingsPage";
 import AlertsModule from "./pages/admin/AlertsModule";
 import SupportActions from "./pages/admin/SupportActions";
+import SupportComms from "./pages/admin/SupportComms";
 
 import MessageBank from "./pages/shared/MessageBank";
 import SendMail from "./pages/shared/SendMail";
@@ -439,6 +440,10 @@ export default function App() {
             }
           />
           <Route
+            path="support-comms"
+            element={<SupportComms userProfile={loggedInUser} />}
+          />
+          <Route
             path="support-actions/:issueId"
             element={
               <SupportActions
@@ -506,6 +511,10 @@ export default function App() {
                 userProfile={loggedInUser}
               />
             }
+          />
+          <Route
+            path="support-comms"
+            element={<SupportComms userProfile={loggedInUser} />}
           />
           <Route
             path="support-actions/:issueId"

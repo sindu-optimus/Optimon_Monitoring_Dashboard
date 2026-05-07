@@ -20,6 +20,7 @@ export default function AdminSidebar({ isAdminUser = false }) {
     { name: "FAQs", path: "/admin/faqs", icon: "ri-question-line", activeIcon: "ri-question-fill" },
     { name: "Users", path: "/admin/add-users", icon: "ri-team-line", activeIcon: "ri-team-fill" },
     { name: "Interfaces", path: "/admin/summary-interfaces", icon: "ri-bar-chart-line", activeIcon: "ri-bar-chart-fill" },
+    { name: "Support Comms", path: "/admin/support-comms", icon: "ri-mail-line", activeIcon: "ri-mail-fill" },
     { name: "Profile", path: "/admin/profile", icon: "ri-user-line", activeIcon: "ri-user-fill" },
     { name: "Settings", path: "/admin/settings", icon: "ri-settings-3-line", activeIcon: "ri-settings-3-fill" },
   ].filter((item) => {

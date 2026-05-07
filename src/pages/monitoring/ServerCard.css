@@ -3,7 +3,8 @@
 } */
 
 .ellipsis {
-  max-width: 260px;
+  width: 100%;
+  max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -278,9 +279,7 @@
 }
 
 .queue-content table td.pending-count-column {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
+  min-width: 0;
 }
 
 .support-details-overlay {

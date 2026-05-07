@@ -1,6 +1,8 @@
 .critical-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .critical-page-header {
@@ -21,6 +23,42 @@
 
 .critical-add-btn:hover {
   background: #5995c6;
+}
+
+.critical-download-btn {
+  height: 42px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 10px;
+  background: #1f7a45;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 8px 18px rgba(31, 122, 69, 0.18);
+  transition: background-color 0.2s ease, transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.critical-download-btn i {
+  font-size: 18px;
+}
+
+.critical-download-btn:hover:not(:disabled) {
+  background: #186238;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(24, 98, 56, 0.22);
+}
+
+.critical-download-btn:disabled {
+  background: #b8c4bd;
+  color: #f8faf9;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .critical-toolbar {
@@ -240,7 +278,11 @@
 }
 
 .critical-table-card {
+  width: 100%;
   overflow-x: auto;
+  border: 1px solid #d6dde6;
+  border-radius: 12px;
+  background: #fff;
 }
 
 .critical-table {
@@ -254,11 +296,12 @@
   padding: 14px 12px;
   text-align: left;
   vertical-align: top;
-  border-right: 1px solid #dbe4ee;
-  border-bottom: 1px solid #dbe4ee;
+  border-right: 1px solid #e0e6ed;
+  border-bottom: 1px solid #e0e6ed;
   color: #374151;
   font-size: 14px;
   line-height: 1.45;
+  background: #fff;
 }
 
 .critical-table th:last-child,
@@ -269,11 +312,17 @@
 .critical-table thead th {
   background: #eef4f9;
   color: #243447;
-  font-weight: 600;
+  font-weight: 700;
+  border-right: 1px solid #d6dde6;
+  border-bottom: 1px solid #c8d2dc;
+}
+
+.critical-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .critical-table tbody tr:hover td {
-  background: #f8fbfd;
+  background: #f9fbfd;
 }
 
 .critical-table td:first-child,
@@ -593,5 +642,15 @@
 
   .paginationPages {
     margin-left: 0;
+  }
+
+  .critical-table-card {
+    border-radius: 10px;
+  }
+
+  .critical-table th,
+  .critical-table td {
+    padding: 12px 10px;
+    font-size: 13px;
   }
 }

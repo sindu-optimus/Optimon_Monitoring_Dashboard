@@ -63,6 +63,11 @@ const createInitialForm = (initial, defaultTrustId, defaultView) => ({
     "interface_name",
     "name",
   ]),
+  aliasName: getFirstDefinedValue(initial?.rawItem, [
+    "aliasName",
+    "alias_name",
+    "alias",
+  ]),
   weekDayInside: getFirstDefinedValue(initial?.rawItem, [
     "dayIdleTime",
     "idleTimeWeekDayInsideBusinessHours",
@@ -143,12 +148,18 @@ export default function AlertsModuleForm({
     "trustId",
     "interfaceType",
     "serviceName",
+    "aliasName",
     "weekDayInside",
     "weekDayOutside",
     "weekendInside",
     "weekendOutside",
   ];
-  const otherValidationOrder = ["trustId", "interfaceType", "interfaceName"];
+  const otherValidationOrder = [
+    "trustId",
+    "interfaceType",
+    "interfaceName",
+    "aliasName",
+  ];
 
   const getFieldError = (field, nextForm) => {
     switch (field) {
@@ -158,6 +169,8 @@ export default function AlertsModuleForm({
         return nextForm.interfaceType ? "" : "Component type is required";
       case "serviceName":
         return nextForm.serviceName.trim() ? "" : "Inbound name is required";
+      case "aliasName":
+        return nextForm.aliasName.trim() ? "" : "Alias name is required";
       case "weekDayInside":
         if (!nextForm.weekDayInside.trim()) {
           return "Weekday inside business hours is required";
@@ -302,6 +315,7 @@ export default function AlertsModuleForm({
     if (isInbound) {
       return (
         Boolean(form.serviceName.trim()) &&
+        Boolean(form.aliasName.trim()) &&
         /^\d+$/.test(form.weekDayInside.trim()) &&
         /^\d+$/.test(form.weekDayOutside.trim()) &&
         /^\d+$/.test(form.weekendInside.trim()) &&
@@ -309,7 +323,7 @@ export default function AlertsModuleForm({
       );
     }
 
-    return Boolean(form.interfaceName.trim());
+    return Boolean(form.interfaceName.trim()) && Boolean(form.aliasName.trim());
   }, [form, isInbound]);
 
   const toggleAlertStatus = () => {
@@ -337,6 +351,7 @@ export default function AlertsModuleForm({
       ? {
           ...(initial?.rawItem || {}),
           serviceName: form.serviceName.trim(),
+          aliasName: form.aliasName.trim(),
           trustId,
           trustName: selectedTrustName,
           dayIdleTime: Number(form.weekDayInside.trim()),
@@ -351,6 +366,7 @@ export default function AlertsModuleForm({
           ...(initial?.rawItem || {}),
           endpointName: form.interfaceName.trim(),
           interfaceName: form.interfaceName.trim(),
+          aliasName: form.aliasName.trim(),
           isCritical: Boolean(form.isCritical),
           deleted: Boolean(form.deleted),
           trustId,
@@ -456,6 +472,19 @@ export default function AlertsModuleForm({
             />
             {errors.serviceName && (
               <p className="input-error">{errors.serviceName}</p>
+            )}
+
+            <label className="form-label">Alias Name*</label>
+            <input
+              className={`form-input ${errors.aliasName ? "input-invalid" : ""}`}
+              value={form.aliasName}
+              onChange={(e) => handleChange("aliasName", e.target.value)}
+              onFocus={() => handleFieldFocus("aliasName")}
+              onBlur={() => handleFieldBlur("aliasName")}
+              placeholder="Enter alias name"
+            />
+            {errors.aliasName && (
+              <p className="input-error">{errors.aliasName}</p>
             )}
 
             <div className="group">
@@ -636,6 +665,19 @@ export default function AlertsModuleForm({
             />
             {errors.interfaceName && (
               <p className="input-error">{errors.interfaceName}</p>
+            )}
+
+            <label className="form-label">Alias Name*</label>
+            <input
+              className={`form-input ${errors.aliasName ? "input-invalid" : ""}`}
+              value={form.aliasName}
+              onChange={(e) => handleChange("aliasName", e.target.value)}
+              onFocus={() => handleFieldFocus("aliasName")}
+              onBlur={() => handleFieldBlur("aliasName")}
+              placeholder="Enter alias name"
+            />
+            {errors.aliasName && (
+              <p className="input-error">{errors.aliasName}</p>
             )}
 
             <div className="row critical-form-switch-row">

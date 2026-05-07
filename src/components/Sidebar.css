@@ -1,16 +1,14 @@
 /* ================= BASE SIDEBAR ================= */
 .sidebar {
-  width: 230px;
+  width: 210px;
   height: 100%;
   background-color: #F1F5F9;
   color: #333;
   border-right: 1px solid #e5e9f2;
-
   position: sticky;
   top: 50px;
   left: 0;
   overflow: visible;
-
   transition: width 0.25s ease;
   z-index: 1000;
 }

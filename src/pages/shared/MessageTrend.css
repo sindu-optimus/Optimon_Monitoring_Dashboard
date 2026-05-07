@@ -1,0 +1,78 @@
+.message-trend-page h2 {
+  margin-bottom: 20px;
+}
+
+.message-trend-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.message-trend-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* font-weight: 600; */
+  color: #111827;
+}
+
+.message-trend-controls input,
+.message-trend-controls select {
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 14px;
+}
+
+.message-trend-controls input[readonly] {
+  background: #f8fafc;
+  color: #475569;
+}
+
+.search-btn {
+    height: 42px;
+    padding: 0 18px;
+    border: none;
+    border-radius: 5px;
+    background-color: #60a3d9;
+    color: #fff;
+    font-size: 15px;
+    cursor: pointer;
+    margin-top: 28px;
+}
+
+.search-btn:hover {
+  background: #246fa6;
+}
+
+.search-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.message-trend-card {
+  min-height: 420px;
+  padding: 20px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.message-trend-card h3 {
+  margin: 0 0 16px;
+}
+
+.message-trend-status {
+  margin: 0;
+  padding: 150px 0;
+  text-align: center;
+  color: #475569;
+}
+
+.message-trend-status.error {
+  color: #dc2626;
+}

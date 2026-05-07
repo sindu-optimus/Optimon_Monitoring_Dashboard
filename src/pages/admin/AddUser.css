@@ -172,7 +172,7 @@
   margin-top: 20px;
   overflow-x: auto;
   background: #fff;
-  border: 1px solid #cfd8e3;
+  border: 1px solid #d6dde6;
   border-radius: 12px;
 }
 
@@ -185,20 +185,32 @@
 .users-table th,
 .users-table td {
   padding: 14px 16px;
-  border: 1px solid #d9e1ea;
+  border-right: 1px solid #e0e6ed;
+  border-bottom: 1px solid #e0e6ed;
   text-align: left;
   font-size: 14px;
   vertical-align: middle;
 }
 
 .users-table th {
-  background: #f8fbfd;
-  color: #1f2937;
+  background: #eef4f9;
+  color: #243447;
   font-weight: 700;
+  border-right: 1px solid #d6dde6;
+  border-bottom: 1px solid #c8d2dc;
+}
+
+.users-table th:last-child,
+.users-table td:last-child {
+  border-right: none;
+}
+
+.users-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .users-table tbody tr:hover td {
-  background: #f9fcff;
+  background: #f9fbfd;
 }
 
 .users-table th:first-child,

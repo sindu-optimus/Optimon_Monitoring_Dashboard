@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBold,
@@ -14,6 +15,7 @@ import {
   getCriticalInboundReceivers,
   getCriticalInterfaces,
 } from "../../api/criticalInterfacesService";
+import { getSupportContactsByTrustInterfaceAndDirection } from "../../api/supportContactsService";
 
 import "./SendMail.css";
 
@@ -27,14 +29,6 @@ const INTERFACE_TYPE_BY_EMAIL_TYPE = {
   [TYPE_OPTIONS.IDLE_TIME]: "INBOUND",
   [TYPE_OPTIONS.QUEUE]: "OTHER",
 };
-const DUMMY_TO_EMAILS = [
-  "optimus.support@example.com",
-  "interface.team@example.com",
-  "integration.ops@example.com",
-  "middleware.support@example.com",
-  "service.owner@example.com",
-];
-
 const unwrapApiData = (response) => response?.data ?? response;
 
 const getListFromApiResponse = (response) => {
@@ -47,9 +41,15 @@ const getListFromApiResponse = (response) => {
     data?.criticalInterfaceList ??
     data?.criticalInboundReceivers ??
     data?.criticalInboundReceiverList ??
+    data?.supportContacts ??
+    data?.supportContactList ??
     data;
 
-  return Array.isArray(list) ? list : [];
+  if (Array.isArray(list)) {
+    return list;
+  }
+
+  return list && typeof list === "object" ? [list] : [];
 };
 
 const getFirstValue = (item, keys, fallback = "") => {
@@ -93,8 +93,8 @@ We are observing that no messages are being received in the ${interfaceName} inb
 
 Could you please check the outbound at your end and restart it if required?
 
-Thanks & Regards,
-Madhu`;
+Thanks,
+Optimus Support`;
   }
 
   return `Dear Team,
@@ -107,13 +107,60 @@ Thanks,
 Optimus Support`;
 };
 
+const getDirectionFromType = (selectedType) =>
+  selectedType === TYPE_OPTIONS.IDLE_TIME ? "INBOUND" : "OUTBOUND";
+
+const getTypeFromDirection = (direction) =>
+  String(direction).toUpperCase() === "INBOUND"
+    ? TYPE_OPTIONS.IDLE_TIME
+    : TYPE_OPTIONS.QUEUE;
+
+const normalizeDelimitedValues = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (value === undefined || value === null) {
+    return [];
+  }
+
+  return String(value)
+    .split(/[,\n;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const getSupportEmails = (item) =>
+  normalizeDelimitedValues(
+    item?.supportEmails ??
+      item?.supportEmail ??
+      item?.emails ??
+      item?.emailIds ??
+      item?.email
+  );
+
+const getSupportPhoneNumbers = (item) =>
+  normalizeDelimitedValues(
+    item?.telephoneMobile ??
+      item?.telephone ??
+      item?.mobile ??
+      item?.phone ??
+      item?.contactNumber
+  ).filter((phoneNumber) => phoneNumber.replace(/\D/g, "") !== "0");
+
+const uniqueValues = (values) =>
+  Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+
 const SendMail = () => {
+  const location = useLocation();
   const editorRef = useRef(null);
   const toInputRef = useRef(null);
   const ccInputRef = useRef(null);
   const interfaceInputRef = useRef(null);
+  const phoneTooltipRef = useRef(null);
   const customInterfaceSaveKeyRef = useRef("");
   const lastAutomaticBodyRef = useRef("");
+  const skipNextInterfaceResetRef = useRef(false);
 
   const [to, setTo] = useState([]);
   const [cc, setCc] = useState([]);
@@ -122,7 +169,6 @@ const SendMail = () => {
 
   const [toInputValue, setToInputValue] = useState("");
   const [ccInputValue, setCcInputValue] = useState("");
-  const [showToDropdown, setShowToDropdown] = useState(false);
   const [showCcDropdown, setShowCcDropdown] = useState(false);
   const [trustOptions, setTrustOptions] = useState([]);
   const [selectedTrustId, setSelectedTrustId] = useState("");
@@ -133,9 +179,32 @@ const SendMail = () => {
   const [interfaceSearchValue, setInterfaceSearchValue] = useState("");
   const [showInterfaceDropdown, setShowInterfaceDropdown] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
+  const [supportContactLoading, setSupportContactLoading] = useState(false);
+  const [supportContactError, setSupportContactError] = useState("");
+  const [supportPhoneNumbers, setSupportPhoneNumbers] = useState([]);
   const [customInterfaceSaving, setCustomInterfaceSaving] = useState(false);
   const [showCreateInterfaceDialog, setShowCreateInterfaceDialog] =
     useState(false);
+
+  const routeSearchParams = new URLSearchParams(location.search);
+  const routeState = location.state || {};
+  const routeTrustId = routeState.trustId || routeSearchParams.get("trustId");
+  const routeTrustName =
+    routeState.trustName || routeSearchParams.get("trustName") || "";
+  const routeInterfaceName =
+    routeState.interfaceName ||
+    routeSearchParams.get("interfaceName") ||
+    routeState.queueName ||
+    routeSearchParams.get("queueName") ||
+    routeState.aliasName ||
+    routeSearchParams.get("aliasName") ||
+    "";
+  const routeDirection =
+    routeState.direction || routeSearchParams.get("direction") || "";
+  const selectedTrust = trustOptions.find(
+    (trust) => String(trust.id) === String(selectedTrustId)
+  );
+  const selectedTrustName = selectedTrust?.name || routeTrustName || "";
 
   const [errors, setErrors] = useState({});
   const [isFormValid, setIsFormValid] = useState(false);
@@ -143,6 +212,8 @@ const SendMail = () => {
   const [responseMessage, setResponseMessage] = useState("");
   const [responseType, setResponseType] = useState("success");
   const [showBodyTooltip, setShowBodyTooltip] = useState(false);
+  const [showPhoneTooltip, setShowPhoneTooltip] = useState(false);
+  const isOtherInterface = selectedInterfaceId === OTHER_INTERFACE_VALUE;
 
   /* ================= FETCH LOOKUPS ================= */
   useEffect(() => {
@@ -157,6 +228,38 @@ const SendMail = () => {
 
     fetchLookupData();
   }, []);
+
+  useEffect(() => {
+    if (!routeInterfaceName || !routeDirection) {
+      return;
+    }
+
+    const matchedTrust =
+      routeTrustId ||
+      trustOptions.find(
+        (trust) =>
+          String(trust.name || "").trim().toLowerCase() ===
+          String(routeTrustName).trim().toLowerCase()
+      )?.id;
+
+    if (!matchedTrust) {
+      return;
+    }
+
+    skipNextInterfaceResetRef.current = true;
+    setSelectedTrustId(String(matchedTrust));
+    setSelectedType(getTypeFromDirection(routeDirection));
+    setSelectedInterfaceId(String(routeInterfaceName));
+    setInterfaceSearchValue(String(routeInterfaceName));
+    setCustomInterfaceName("");
+    setShowInterfaceDropdown(false);
+  }, [
+    routeTrustId,
+    routeTrustName,
+    routeInterfaceName,
+    routeDirection,
+    trustOptions,
+  ]);
 
   useEffect(() => {
     const fetchInterfaces = async () => {
@@ -212,11 +315,85 @@ const SendMail = () => {
   }, [selectedTrustId, selectedType]);
 
   useEffect(() => {
+    if (skipNextInterfaceResetRef.current) {
+      skipNextInterfaceResetRef.current = false;
+      return;
+    }
+
     setSelectedInterfaceId("");
     setCustomInterfaceName("");
     setInterfaceSearchValue("");
     setShowInterfaceDropdown(false);
+    setTo([]);
+    setSupportPhoneNumbers([]);
+    setSupportContactError("");
   }, [selectedTrustId, selectedType]);
+
+  useEffect(() => {
+    const fetchSupportContacts = async () => {
+      const currentInterfaceName = isOtherInterface
+        ? customInterfaceName.trim()
+        : interfaceSearchValue.trim();
+      const direction = getDirectionFromType(selectedType);
+
+      if (
+        !selectedTrustId ||
+        !currentInterfaceName ||
+        !selectedType ||
+        isOtherInterface
+      ) {
+        setTo([]);
+        setSupportPhoneNumbers([]);
+        setSupportContactError("");
+        return;
+      }
+
+      try {
+        setSupportContactLoading(true);
+        setSupportContactError("");
+
+        const searchParams = {
+          trustId: selectedTrustId,
+          trustName: selectedTrustName,
+          interfaceName: currentInterfaceName,
+          direction,
+        };
+
+        console.log("[SendMail] Support contacts search params:", searchParams);
+
+        const response = await getSupportContactsByTrustInterfaceAndDirection(
+          searchParams
+        );
+        const contacts = getListFromApiResponse(response);
+        const supportEmails = uniqueValues(contacts.flatMap(getSupportEmails));
+        const phoneNumbers = uniqueValues(contacts.flatMap(getSupportPhoneNumbers));
+
+        setTo(supportEmails);
+        setSupportPhoneNumbers(phoneNumbers);
+
+        if (supportEmails.length) {
+          setErrors((prev) => (prev.to ? { ...prev, to: null } : prev));
+        }
+      } catch (err) {
+        console.error("Error fetching support contacts:", err);
+        setTo([]);
+        setSupportPhoneNumbers([]);
+        setSupportContactError("Unable to load support contacts for this interface.");
+      } finally {
+        setSupportContactLoading(false);
+      }
+    };
+
+    fetchSupportContacts();
+  }, [
+    selectedTrustId,
+    selectedTrustName,
+    selectedType,
+    selectedInterfaceId,
+    interfaceSearchValue,
+    customInterfaceName,
+    isOtherInterface,
+  ]);
 
   /* ================= VALIDATION ================= */
   const getEditorText = () => editorRef.current?.innerText?.trim() || "";
@@ -230,27 +407,27 @@ const SendMail = () => {
   const hasOnlyValidEmails = (emails = []) =>
     emails.every((email) => EMAIL_REGEX.test(email));
 
-  const getDraftToEmails = () => [...to];
+  const splitEmailsByValidity = (value) => {
+    const parsedEmails = parseEmailInput(value);
+
+    return {
+      validEmails: parsedEmails.filter((email) => EMAIL_REGEX.test(email)),
+      invalidEmails: parsedEmails.filter((email) => !EMAIL_REGEX.test(email)),
+    };
+  };
+
+  const getDraftToEmails = () => uniqueValues([...to, ...parseEmailInput(toInputValue)]);
 
   const getDraftCcEmails = () => [...cc, ...parseEmailInput(ccInputValue)];
-  const isOtherInterface = selectedInterfaceId === OTHER_INTERFACE_VALUE;
   const hasSelectedInterface = isOtherInterface
     ? customInterfaceName.trim().length > 0
     : Boolean(selectedInterfaceId);
   const filteredInterfaceOptions = interfaceOptions.filter((item) =>
     item.name.toLowerCase().includes(interfaceSearchValue.trim().toLowerCase())
   );
-  const selectedTrust = trustOptions.find(
-    (trust) => String(trust.id) === String(selectedTrustId)
-  );
-  const selectedTrustName = selectedTrust?.name || "";
   const selectedInterfaceName = isOtherInterface
     ? customInterfaceName.trim()
     : interfaceSearchValue.trim();
-  const filteredToEmails = DUMMY_TO_EMAILS.filter((email) =>
-    email.toLowerCase().includes(toInputValue.trim().toLowerCase())
-  );
-
   useEffect(() => {
     const nextSubject = buildAutomaticSubject({
       trustName: selectedTrustName,
@@ -528,20 +705,60 @@ const SendMail = () => {
     document.execCommand(cmd, false, value);
   };
 
-  const handleToFocus = () => {
-    setShowToDropdown(true);
-  };
+  const commitToInput = (value) => {
+    const { validEmails, invalidEmails } = splitEmailsByValidity(value);
 
-  const handleToOptionToggle = (email) => {
-    setTo((prev) =>
-      prev.includes(email)
-        ? prev.filter((selectedEmail) => selectedEmail !== email)
-        : [...prev, email]
-    );
+    if (!validEmails.length && !invalidEmails.length) {
+      return false;
+    }
+
+    if (validEmails.length) {
+      setTo((prev) => uniqueValues([...prev, ...validEmails]));
+    }
+
     setToInputValue("");
-    if (errors.to) {
+
+    if (invalidEmails.length) {
+      setErrors((prev) => ({
+        ...prev,
+        to: "Enter a valid email address in To",
+      }));
+      return true;
+    }
+
+    if (validEmails.length && errors.to) {
       setErrors((prev) => ({ ...prev, to: null }));
     }
+
+    return true;
+  };
+
+  const commitCcInput = (value) => {
+    const { validEmails, invalidEmails } = splitEmailsByValidity(value);
+
+    if (!validEmails.length && !invalidEmails.length) {
+      return false;
+    }
+
+    if (validEmails.length) {
+      setCc((prev) => uniqueValues([...prev, ...validEmails]));
+    }
+
+    setCcInputValue("");
+
+    if (invalidEmails.length) {
+      setErrors((prev) => ({
+        ...prev,
+        cc: "Enter a valid email address in CC",
+      }));
+      return true;
+    }
+
+    if (validEmails.length && errors.cc) {
+      setErrors((prev) => ({ ...prev, cc: null }));
+    }
+
+    return true;
   };
 
   const handleBodyFocus = () => {
@@ -586,6 +803,9 @@ const SendMail = () => {
     setInterfaceOptions([]);
     setInterfaceSearchValue("");
     setShowInterfaceDropdown(false);
+    setSupportPhoneNumbers([]);
+    setSupportContactError("");
+    setShowPhoneTooltip(false);
     setShowCreateInterfaceDialog(false);
     lastAutomaticBodyRef.current = "";
     setErrors({});
@@ -636,11 +856,17 @@ const SendMail = () => {
   /* ================= OUTSIDE CLICK ================= */
   useEffect(() => {
     const handler = (e) => {
-      if (toInputRef.current && !toInputRef.current.contains(e.target)) {
-        setShowToDropdown(false);
-      }
       if (ccInputRef.current && !ccInputRef.current.contains(e.target)) {
         setShowCcDropdown(false);
+      }
+      if (
+        showPhoneTooltip &&
+        toInputRef.current &&
+        phoneTooltipRef.current &&
+        !toInputRef.current.contains(e.target) &&
+        !phoneTooltipRef.current.contains(e.target)
+      ) {
+        setShowPhoneTooltip(false);
       }
       if (
         interfaceInputRef.current &&
@@ -652,7 +878,7 @@ const SendMail = () => {
 
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  }, [showPhoneTooltip]);
 
   return (
     <div className="content send-mail-page">
@@ -819,10 +1045,37 @@ const SendMail = () => {
           </div>
         )}
 
-        {/* TO */}
         <div className="form-group">
-          <label>To:</label>
-          <div className="dropdown-input" ref={toInputRef}>
+          <div className="send-mail-label-row">
+            <label>To:</label>
+            {supportPhoneNumbers.length > 0 && (
+              <div className="body-helper" ref={phoneTooltipRef}>
+                <button
+                  type="button"
+                  className="body-helper-icon"
+                  aria-label="Support telephone or mobile numbers"
+                  onClick={() => setShowPhoneTooltip((prev) => !prev)}
+                >
+                  <FontAwesomeIcon icon={faCircleInfo} />
+                </button>
+                {showPhoneTooltip && (
+                  <div className="body-tooltip" role="tooltip">
+                      Mobile number is also available:
+                    <span> {supportPhoneNumbers.join(", ")}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div
+            className="dropdown-input recipient-input"
+            ref={toInputRef}
+            onClick={() => {
+              if (supportPhoneNumbers.length > 0) {
+                setShowPhoneTooltip(true);
+              }
+            }}
+          >
             {to.map((email, i) => (
               <span key={i} className="selected-email">
                 {email}
@@ -837,55 +1090,54 @@ const SendMail = () => {
             <input
               value={toInputValue}
               className={errors.to ? "input-invalid" : ""}
-              onFocus={handleToFocus}
-              onClick={() => setShowToDropdown(true)}
+              onFocus={() => {
+                if (supportPhoneNumbers.length > 0) {
+                  setShowPhoneTooltip(true);
+                }
+              }}
               onChange={(e) => {
                 setToInputValue(e.target.value);
                 if (errors.to) {
                   setErrors((prev) => ({ ...prev, to: null }));
                 }
               }}
-              onBlur={() => validateUpTo("to")}
+              onKeyDown={(e) => {
+                if (["Enter", "Tab", ","].includes(e.key)) {
+                  const didCommit = commitToInput(toInputValue);
+
+                  if (didCommit || e.key !== "Tab") {
+                    e.preventDefault();
+                  }
+                }
+              }}
+              onBlur={() => {
+                const { invalidEmails } = splitEmailsByValidity(toInputValue);
+                commitToInput(toInputValue);
+                if (!invalidEmails.length) {
+                  validateUpTo("to");
+                }
+              }}
               placeholder={
-                customInterfaceSaving
+                supportContactLoading
+                  ? "Loading support contacts..."
+                  : customInterfaceSaving
                   ? "Creating interface..."
                   : to.length
-                  ? "Search recipients"
-                  : "Select recipients"
+                  ? "Type another email"
+                  : "Support emails will appear here"
               }
             />
-            {showToDropdown && (
-              <div className="dropdown-list multi-select-list">
-                {filteredToEmails.map((email) => (
-                  <label
-                    key={email}
-                    className="dropdown-item multi-select-item"
-                    onMouseDown={(e) => e.preventDefault()}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={to.includes(email)}
-                      onChange={() => handleToOptionToggle(email)}
-                    />
-                    <span>{email}</span>
-                  </label>
-                ))}
-
-                {!filteredToEmails.length && (
-                  <div className="dropdown-item dropdown-item-disabled">
-                    No recipients found
-                  </div>
-                )}
-              </div>
-            )}
           </div>
+          {supportContactError && (
+            <span className="input-error">{supportContactError}</span>
+          )}
           {errors.to && <span className="input-error">{errors.to}</span>}
         </div>
 
         {/* CC */}
         <div className="form-group">
           <label>CC (Optional):</label>
-          <div className="dropdown-input" ref={ccInputRef}>
+          <div className="dropdown-input recipient-input" ref={ccInputRef}>
             {cc.map((email, i) => (
               <span key={i} className="selected-email">
                 {email}
@@ -907,8 +1159,23 @@ const SendMail = () => {
                   setErrors((prev) => ({ ...prev, cc: null }));
                 }
               }}
-              onBlur={() => validateUpTo("cc")}
-              placeholder="Enter email"
+              onKeyDown={(e) => {
+                if (["Enter", "Tab", ","].includes(e.key)) {
+                  const didCommit = commitCcInput(ccInputValue);
+
+                  if (didCommit || e.key !== "Tab") {
+                    e.preventDefault();
+                  }
+                }
+              }}
+              onBlur={() => {
+                const { invalidEmails } = splitEmailsByValidity(ccInputValue);
+                commitCcInput(ccInputValue);
+                if (!invalidEmails.length) {
+                  validateUpTo("cc");
+                }
+              }}
+              placeholder={cc.length ? "Type another email" : "Enter email"}
             />
           </div>
           {errors.cc && <span className="input-error">{errors.cc}</span>}

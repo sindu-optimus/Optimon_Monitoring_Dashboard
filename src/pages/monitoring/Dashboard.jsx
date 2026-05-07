@@ -1,12 +1,101 @@
 import React, { useEffect, useState } from "react";
-import { Line, Pie } from "react-chartjs-2";
-import { useParams } from "react-router-dom";
-import "chart.js/auto";
+import { useLocation, useParams } from "react-router-dom";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { getServiceGraphData } from "../../api/messageTrendService";
 import "./Dashboard.css";
+
+const toDateInputValue = (date) => {
+  const pad = (part) => String(part).padStart(2, "0");
+
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join("-");
+};
+
+const getDailyDateRange = () => {
+  const to = new Date();
+  const from = new Date(to);
+  from.setDate(from.getDate() - 60);
+
+  return {
+    fromDate: toDateInputValue(from),
+    toDate: toDateInputValue(to),
+  };
+};
+
+const unwrapApiData = (response) => response?.data ?? response;
+
+const getGraphRows = (response) => {
+  const data = unwrapApiData(response);
+  const list =
+    data?.data ??
+    data?.content ??
+    data?.items ??
+    data?.graphData ??
+    data?.serviceGraphData ??
+    data?.metrics ??
+    data;
+
+  return Array.isArray(list) ? list : [];
+};
+
+const getNumber = (value) => Number(value) || 0;
+
+const formatDailyLabel = (label) => {
+  if (!label) {
+    return "";
+  }
+
+  const date = new Date(String(label).replace(" ", "T"));
+
+  if (Number.isNaN(date.getTime())) {
+    return String(label);
+  }
+
+  return date.toLocaleDateString([], {
+    month: "short",
+    day: "2-digit",
+  });
+};
 
 const Dashboard = () => {
   const { id } = useParams();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const { queueName: stateQueueName, aliasName: stateAliasName } =
+    location.state || {};
+  const {
+    serviceName: stateServiceName,
+    interfaceName: stateInterfaceName,
+    trustId: stateTrustId,
+    trustName: stateTrustName,
+  } = location.state || {};
+  const queueName = stateQueueName || searchParams.get("queueName");
+  const aliasName = stateAliasName || searchParams.get("aliasName");
+  const serviceName =
+    stateServiceName ||
+    searchParams.get("serviceName") ||
+    stateInterfaceName ||
+    searchParams.get("interfaceName") ||
+    "";
+  const trustId = stateTrustId || searchParams.get("trustId") || "";
+  const trustName = stateTrustName || searchParams.get("trustName") || "";
+  const displayName =
+    aliasName && queueName ? `${aliasName} (${queueName})` : aliasName || id;
   const [dashboardData, setDashboardData] = useState(null);
+  const [trendData, setTrendData] = useState([]);
+  const [trendLoading, setTrendLoading] = useState(false);
+  const [trendError, setTrendError] = useState("");
 
   const mockDashboardData = {
     status: "Healthy",
@@ -15,56 +104,10 @@ const Dashboard = () => {
       sent: true,
       time: "Dec 23, 2025 10:42 AM",
     },
-
-    recentActions: [
-      {
-        time: "10:40 AM",
-        action: "Message processed successfully",
-        user: "System",
-      },
-      {
-        time: "10:35 AM",
-        action: "Retry triggered for failed message",
-        user: "Admin",
-      },
-      {
-        time: "10:20 AM",
-        action: "Interface restarted",
-        user: "Sindu",
-      },
-      {
-        time: "10:05 AM",
-        action: "Configuration updated",
-        user: "Admin",
-      },
-    ],
-
-    messageTrendData: {
-      labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-      datasets: [
-        {
-          label: "Messages",
-          data: [120, 190, 300, 250, 220, 180, 260],
-          fill: false,
-          borderColor: "#4CAF50",
-          tension: 0.4,
-        },
-      ],
-    },
-
-    errorSuccessData: {
-      labels: ["Success", "Error"],
-      datasets: [
-        {
-          data: [92, 8],
-          backgroundColor: ["#2ecc71", "#e74c3c"],
-        },
-      ],
-    },
   };
 
   useEffect(() => {
-    // ⏳ simulate API delay
+    // simulate API delay
     const timer = setTimeout(() => {
       setDashboardData(mockDashboardData);
     }, 500);
@@ -72,19 +115,67 @@ const Dashboard = () => {
     return () => clearTimeout(timer);
   }, [id]);
 
+  useEffect(() => {
+    const loadDashboardTrend = async () => {
+      if (!serviceName || !trustId) {
+        setTrendData([]);
+        setTrendError("");
+        console.warn("[Dashboard] Missing service graph params:", {
+          serviceName,
+          trustId,
+        });
+        return;
+      }
+
+      const { fromDate, toDate } = getDailyDateRange();
+      const params = {
+        serviceName,
+        trustId,
+        groupBy: "DAILY",
+        fromDate,
+        toDate,
+      };
+
+      try {
+        setTrendLoading(true);
+        setTrendError("");
+        console.log("[Dashboard] Service graph params:", {
+          ...params,
+          trustName,
+          metric: "averageTimeDelay",
+        });
+
+        const response = await getServiceGraphData(params);
+        const rows = getGraphRows(response).map((item) => ({
+          label: formatDailyLabel(item?.label),
+          value: getNumber(item?.averageTimeDelay),
+        }));
+
+        setTrendData(rows);
+      } catch (error) {
+        console.error("Error loading dashboard trend:", error);
+        setTrendData([]);
+        setTrendError("Unable to load message trend data.");
+      } finally {
+        setTrendLoading(false);
+      }
+    };
+
+    loadDashboardTrend();
+  }, [serviceName, trustId, trustName]);
+
   if (!dashboardData) return <p>Loading data...</p>;
 
   const {
-    recentActions,
     lastEmail,
-    messageTrendData,
-    errorSuccessData,
     status,
   } = dashboardData;
 
   return (
     <div className="content">
-      <h2>{id ? `Dashboard - ${id}` : "Interface Dashboard"}</h2>
+      <h2>
+        {displayName ? `Dashboard - ${displayName}` : "Interface Dashboard"}
+      </h2>
 
       {/* Status Cards */}
       <div className="status-cards">
@@ -99,28 +190,42 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ✅ Charts */}
+      {/* Charts */}
       <div className="chart-section">
-        <div className="chart-card">
-          <h3>Message Volume Trend</h3>
-          <Line data={messageTrendData} />
+        <div className="chart-card dashboard-trend-card">
+          <h3>Avg Time Delay Trend</h3>
+          {trendLoading ? (
+            <p className="dashboard-trend-status">Loading trend data...</p>
+          ) : trendError ? (
+            <p className="dashboard-trend-status error">{trendError}</p>
+          ) : trendData.length ? (
+            <ResponsiveContainer width="100%" height={320}>
+              <LineChart data={trendData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="label"
+                  minTickGap={24}
+                  interval="preserveStartEnd"
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  name="Avg time delay"
+                  stroke="#2B81BF"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="dashboard-trend-status">
+              No trend data available.
+            </p>
+          )}
         </div>
-
-        <div className="chart-card">
-          <h3>Error vs Success</h3>
-          <Pie data={errorSuccessData} />
-        </div>
-      </div>
-
-      <div className="actions-section">
-        <h3>Recent Actions</h3>
-        <ul>
-          {recentActions.map((item, index) => (
-            <li key={index}>
-              <strong>{item.time}</strong>: {item.action} (by {item.user})
-            </li>
-          ))}
-        </ul>
       </div>
     </div>
   );

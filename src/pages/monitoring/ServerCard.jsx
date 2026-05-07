@@ -5,6 +5,7 @@ import trendDownImg from "../../assets/trend-down.gif";
 import "./ServerCard.css";
 
 export default function ServerCard({
+  trustId,
   serverName,
   queues = [],
   endpoints = [],
@@ -153,7 +154,7 @@ export default function ServerCard({
 
   const getMatchedSupportIssues = (queue) =>
     supportIssuesByQueue.get(
-      getQueueSupportKey(queue?.trustId, queue?.name)
+      getQueueSupportKey(queue?.trustId, queue?.queueName || queue?.name)
     ) || [];
 
   const formatDateTime = (value) => {
@@ -217,7 +218,7 @@ export default function ServerCard({
 
   const handleInfoIconClick = (queue) => {
     const trustName = serverName;
-    const interfaceName = queue.name;
+    const interfaceName = queue.queueName || queue.name;
     const matchedItems = getMatchedSupportIssues(queue);
 
     setDetailsModal({
@@ -243,6 +244,71 @@ export default function ServerCard({
         interfaceName,
       },
     });
+  };
+
+  const handleQueueClick = (queue) => {
+    const aliasName = queue.aliasName || queue.name;
+    const queueName = queue.queueName || queue.name;
+    const params = new URLSearchParams({
+      aliasName,
+      queueName,
+      interfaceName: queueName,
+      direction: "OUTBOUND",
+    });
+
+    if (queue.trustId ?? trustId) {
+      params.set("trustId", String(queue.trustId ?? trustId));
+    }
+
+    if (serverName) {
+      params.set("trustName", serverName);
+    }
+
+    navigate(
+      `/action/${encodeURIComponent(aliasName)}/dashboard?${params.toString()}`,
+      {
+        state: {
+          queueName,
+          aliasName,
+          interfaceName: queueName,
+          direction: "OUTBOUND",
+          trustId: queue.trustId ?? trustId,
+          trustName: serverName,
+        },
+      }
+    );
+  };
+
+  const handleEndpointClick = (endpoint) => {
+    const serviceName = endpoint.serviceName || endpoint.name;
+    const params = new URLSearchParams({
+      aliasName: serviceName,
+      serviceName,
+      interfaceName: serviceName,
+      direction: "INBOUND",
+    });
+
+    if (endpoint.trustId ?? trustId) {
+      params.set("trustId", String(endpoint.trustId ?? trustId));
+    }
+
+    if (serverName) {
+      params.set("trustName", serverName);
+    }
+
+    navigate(
+      `/action/${encodeURIComponent(serviceName)}/dashboard?${params.toString()}`,
+      {
+        state: {
+          aliasName: serviceName,
+          serviceName,
+          interfaceName: serviceName,
+          direction: "INBOUND",
+          trustId: endpoint.trustId ?? trustId,
+          trustName: serverName,
+        },
+      }
+    );
   };
 
   /* ================= RENDER ================= */
@@ -331,14 +397,13 @@ export default function ServerCard({
                           <span
                             className="ellipsis queue-tooltip-target"
                             onMouseEnter={(e) =>
-                              showTooltip(e.currentTarget, queue.name)
-                            }
-                            onMouseLeave={hideTooltip}
-                            onClick={() =>
-                              navigate(
-                                `/action/${encodeURIComponent(queue.name)}`
+                              showTooltip(
+                                e.currentTarget,
+                                queue.queueName || queue.name
                               )
                             }
+                            onMouseLeave={hideTooltip}
+                            onClick={() => handleQueueClick(queue)}
                           >
                             {queue.name}
                           </span>
@@ -451,11 +516,7 @@ export default function ServerCard({
                             showTooltip(e.currentTarget, endpoint.name)
                           }
                           onMouseLeave={hideTooltip}
-                          onClick={() =>
-                            navigate(
-                              `/action/${encodeURIComponent(endpoint.name)}`
-                            )
-                          }
+                          onClick={() => handleEndpointClick(endpoint)}
                         >
                           {endpoint.name}
                         </span>

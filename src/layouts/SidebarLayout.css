@@ -7,6 +7,56 @@
   overflow-y: auto;
 }
 
+.standard-page-layout {
+  position: relative;
+  isolation: isolate;
+  background: #eef6fb;
+}
+
+.standard-bg-video {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  filter: brightness(0.85) saturate(1.1);
+  pointer-events: none;
+}
+
+.standard-video-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgb(175 196 209 / 85%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.standard-page-layout .sidebar,
+.standard-page-layout .sidebar-toggle-btn {
+  z-index: 3;
+}
+
+.standard-page-content {
+  position: relative;
+  z-index: 2;
+  background: transparent;
+}
+
+.standard-content-layer {
+  position: relative;
+  z-index: 1;
+  min-height: 100%;
+}
+
+.standard-page-layout .main-container,
+.standard-page-layout .settings-page,
+.standard-page-layout .form-root {
+  background: transparent;
+}
+
 /* .content {
     padding: 100px 30px;
     width: 100%;
