@@ -1,20 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
-import CriticalInterfaceForm from "../../components/CriticalInterfaceForm";
+import * as XLSX from "xlsx";
+import AlertsModuleForm from "../../components/AlertsModuleForm";
 import {
   deleteCriticalInterface,
+  getCriticalInboundReceiverById,
+  getCriticalInboundReceivers,
   updateAllCriticalInterfaceAlerts,
   updateAllCriticalInboundReceiverAlerts,
   getCriticalInterfaceById,
   getCriticalInterfaces,
-  getCriticalInboundReceiverById,
-  getCriticalInboundReceivers,
   updateCriticalInterfaceAlert,
   updateCriticalInboundReceiverAlert,
-  updateCriticalInterface,
-} from "../../api/metricsService";
+} from "../../api/criticalInterfacesService";
 import { getTrusts } from "../../api/trustService";
 import { filterTrustsByAccess } from "../../utils/trustAccess";
-import "./CriticalInterfaces.css";
+import "./AlertsModule.css";
 
 const VIEW_OPTIONS = {
   INBOUND: "INBOUND",
@@ -27,11 +27,25 @@ const ALERT_FILTER_OPTIONS = {
   DISABLED: "DISABLED",
 };
 
+const TYPE_FILTER_OPTIONS = {
+  ALL: "ALL",
+  CRITICAL: "CRITICAL",
+  NON_CRITICAL: "NON_CRITICAL",
+};
+
+const DEFAULT_ALERT_ENABLED = true;
+const DEFAULT_PAGE_SIZE = 10;
+
 const INBOUND_COLUMNS = [
   {
     key: "serviceName",
     label: "Inbound Name",
     getters: ["serviceName", "interfaceName", "interface_name", "name"],
+  },
+  {
+    key: "aliasName",
+    label: "Alias Name",
+    getters: ["aliasName", "alias_name", "alias"],
   },
   {
     key: "weekDayInside",
@@ -134,15 +148,36 @@ const getListFromApiResponse = (response) => {
   return Array.isArray(list) ? list : [];
 };
 
-const getTrustIdFromItem = (item) =>
-  item?.trustId ?? item?.trust_id ?? item?.trust?.id ?? item?.trust?.trustId;
+const getTrustIdFromItem = (item) => item?.trustId;
 
-const getTrustNameFromItem = (item) =>
-  item?.trustName ?? item?.trust_name ?? item?.trust?.name;
+const getTrustNameFromItem = (item) => item?.trustName;
 
 const getInboundReceiverFromApiResponse = (response) => {
   const data = unwrapApiData(response);
-  return data?.data ?? data?.criticalInboundReceiver ?? data;
+  return data?.data ?? data?.criticalInboundReceiver ?? data?.criticalInterface ?? data;
+};
+
+const getUpdatedOnValue = (item) => item?.updatedOn;
+
+const formatDateTime = (value) => {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  const pad = (part) => String(part).padStart(2, "0");
+
+  return `${[
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join("-")} ${[
+    pad(date.getHours()),
+    pad(date.getMinutes()),
+    pad(date.getSeconds()),
+  ].join(":")}`;
 };
 
 const getCurrentViewFromType = (interfaceType) =>
@@ -162,7 +197,7 @@ const getAlertFilterValue = (alertFilter) => {
   return undefined;
 };
 
-export default function CriticalInterfaces({
+export default function AlertsModule({
   isAdminUser = false,
   userProfile = null,
 }) {
@@ -173,6 +208,9 @@ export default function CriticalInterfaces({
   const [selectedView, setSelectedView] = useState(VIEW_OPTIONS.INBOUND);
   const [selectedAlertFilter, setSelectedAlertFilter] = useState(
     ALERT_FILTER_OPTIONS.ALL
+  );
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState(
+    TYPE_FILTER_OPTIONS.ALL
   );
   const [criticalInterfaces, setCriticalInterfaces] = useState([]);
   const [criticalInboundReceivers, setCriticalInboundReceivers] = useState([]);
@@ -186,9 +224,19 @@ export default function CriticalInterfaces({
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
   const [alertDialogRow, setAlertDialogRow] = useState(null);
   const [showBulkAlertDialog, setShowBulkAlertDialog] = useState(false);
+  const [showTrustSelectionDialog, setShowTrustSelectionDialog] =
+    useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [exportLoading, setExportLoading] = useState(false);
 
   const isAlertEnabled = (row) =>
-    getBooleanValue(row?.rawItem, ["deleted", "isDeleted"], false);
+    getBooleanValue(
+      row?.rawItem,
+      ["deleted", "isDeleted"],
+      DEFAULT_ALERT_ENABLED
+    );
+  const isCriticalRow = (row) => Boolean(row?.rawItem?.isCritical);
   const selectedTrust = trusts.find(
     (trust) => String(trust.id) === String(selectedTrustId)
   );
@@ -205,10 +253,6 @@ export default function CriticalInterfaces({
 
         const trustList = filterTrustsByAccess(response.data || [], userProfile);
         setTrusts(trustList);
-
-        if (trustList.length > 0) {
-          setSelectedTrustId(String(trustList[0].id));
-        }
       } catch (loadError) {
         if (!isActive) return;
         console.error("Error fetching trusts:", loadError);
@@ -232,7 +276,7 @@ export default function CriticalInterfaces({
       selectedTrustId &&
       !trusts.some((trust) => String(trust.id) === String(selectedTrustId))
     ) {
-      setSelectedTrustId(trusts[0] ? String(trusts[0].id) : "");
+      setSelectedTrustId("");
     }
   }, [selectedTrustId, trusts]);
 
@@ -241,10 +285,6 @@ export default function CriticalInterfaces({
     view = selectedView,
     force = false,
   } = {}) => {
-    if (!trustId) {
-      return;
-    }
-
     if (!force && loadedViews[view]) {
       return;
     }
@@ -298,62 +338,77 @@ export default function CriticalInterfaces({
       );
       const selectedTrustName = selectedTrust?.name;
       const inboundItems = criticalInboundReceivers.filter((item) => {
-        const itemTrustId = getTrustIdFromItem(item);
-        if (itemTrustId !== undefined && itemTrustId !== null) {
-          return String(itemTrustId) === String(selectedTrustId);
+        if (!selectedTrustId) {
+          return true;
         }
 
-        const itemTrustName = getTrustNameFromItem(item);
-        if (itemTrustName && selectedTrustName) {
-          return String(itemTrustName) === String(selectedTrustName);
-        }
-
-        return true;
+        return String(item.trustId) === String(selectedTrustId);
       });
 
-      return inboundItems.map((item, index) => ({
-        id: item?.id ?? `inbound-${index}`,
-        interfaceType: VIEW_OPTIONS.INBOUND,
-        trustId: selectedTrustId,
-        rawItem: item,
-        serialNo: index + 1,
-        inboundName: getFirstValue(item, INBOUND_COLUMNS[0].getters),
-        weekDayInside: getFirstValue(item, INBOUND_COLUMNS[1].getters),
-        weekDayOutside: getFirstValue(item, INBOUND_COLUMNS[2].getters),
-        weekendInside: getFirstValue(item, INBOUND_COLUMNS[3].getters),
-        weekendOutside: getFirstValue(item, INBOUND_COLUMNS[4].getters),
-        isMondayIgnore: getFirstValue(item, INBOUND_COLUMNS[5].getters),
-      }));
+      const sortedInboundItems = [...inboundItems].sort((a, b) => {
+        const firstName = getFirstValue(a, INBOUND_COLUMNS[0].getters);
+        const secondName = getFirstValue(b, INBOUND_COLUMNS[0].getters);
+
+        return firstName.localeCompare(secondName, undefined, {
+          sensitivity: "base",
+        });
+      });
+
+      return sortedInboundItems.map((item, index) => {
+        const isMondayIgnoreBool = getBooleanValue(item, INBOUND_COLUMNS[6].getters);
+
+        return {
+          id: item?.id ?? `inbound-${index}`,
+          interfaceType: VIEW_OPTIONS.INBOUND,
+          trustId: selectedTrustId,
+          rawItem: item,
+          serialNo: index + 1,
+          inboundName: getFirstValue(item, INBOUND_COLUMNS[0].getters),
+          aliasName: getFirstValue(item, INBOUND_COLUMNS[1].getters),
+          weekDayInside: getFirstValue(item, INBOUND_COLUMNS[2].getters),
+          weekDayOutside: getFirstValue(item, INBOUND_COLUMNS[3].getters),
+          weekendInside: getFirstValue(item, INBOUND_COLUMNS[4].getters),
+          weekendOutside: getFirstValue(item, INBOUND_COLUMNS[5].getters),
+          isMondayIgnore: isMondayIgnoreBool ? "Yes" : "No",
+          isCritical: getBooleanValue(item, [
+            "isCritical",
+            "critical",
+            "is_critical",
+          ])
+            ? "Yes"
+            : "No",
+          updatedOn: formatDateTime(getUpdatedOnValue(item)),
+        };
+      });
     }
 
     const queueItems = criticalInterfaces.filter((item) => {
-      const itemTrustId = getTrustIdFromItem(item);
-      if (itemTrustId !== undefined && itemTrustId !== null) {
-        return String(itemTrustId) === String(selectedTrustId);
+      if (!selectedTrustId) {
+        return true;
       }
 
-      const itemTrustName = getTrustNameFromItem(item);
-      if (itemTrustName && selectedTrustName) {
-        return String(itemTrustName) === String(selectedTrustName);
-      }
-
-      return true;
+      return String(item.trustId) === String(selectedTrustId);
     });
 
-    return queueItems.map((item, index) => ({
+    const sortedQueueItems = [...queueItems].sort((a, b) => {
+      const firstName = a.endpointName || "";
+      const secondName = b.endpointName || "";
+
+      return firstName.localeCompare(secondName, undefined, {
+        sensitivity: "base",
+      });
+    });
+
+    return sortedQueueItems.map((item, index) => ({
       id: item?.id ?? `queue-${index}`,
       interfaceType: VIEW_OPTIONS.OTHER,
       trustId: selectedTrustId,
       rawItem: item,
       serialNo: index + 1,
-      interfaceName: getFirstValue(item, [
-        "endpointName",
-        "interfaceName",
-        "interface_name",
-        "queueName",
-        "serviceName",
-        "name",
-      ]),
+      interfaceName: item.endpointName || "-",
+      aliasName: item.aliasName || "-",
+      isCritical: item.isCritical ? "Yes" : "No",
+      updatedOn: formatDateTime(getUpdatedOnValue(item)),
     }));
   }, [
     criticalInboundReceivers,
@@ -366,6 +421,18 @@ export default function CriticalInterfaces({
 
   const filteredTableRows = useMemo(() => {
     const filteredRows = tableRows.filter((row) => {
+      if (selectedTypeFilter === TYPE_FILTER_OPTIONS.CRITICAL) {
+        if (!isCriticalRow(row)) {
+          return false;
+        }
+      }
+
+      if (selectedTypeFilter === TYPE_FILTER_OPTIONS.NON_CRITICAL) {
+        if (isCriticalRow(row)) {
+          return false;
+        }
+      }
+
       if (selectedAlertFilter === ALERT_FILTER_OPTIONS.ENABLED) {
         return isAlertEnabled(row);
       }
@@ -381,7 +448,158 @@ export default function CriticalInterfaces({
       ...row,
       serialNo: index + 1,
     }));
-  }, [selectedAlertFilter, tableRows]);
+  }, [selectedAlertFilter, selectedTypeFilter, tableRows]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTableRows.length / pageSize));
+  const paginatedTableRows = useMemo(() => {
+    const startIndex = currentPage * pageSize;
+    return filteredTableRows.slice(startIndex, startIndex + pageSize);
+  }, [currentPage, filteredTableRows, pageSize]);
+  const paginationStart = filteredTableRows.length === 0
+    ? 0
+    : currentPage * pageSize + 1;
+  const paginationEnd = Math.min(
+    currentPage * pageSize + paginatedTableRows.length,
+    filteredTableRows.length
+  );
+  const canGoPrevious = !tableLoading && currentPage > 0;
+  const canGoNext = !tableLoading && currentPage < totalPages - 1;
+  const displayPage = currentPage + 1;
+
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [selectedTrustId, selectedView, selectedAlertFilter, selectedTypeFilter]);
+
+  useEffect(() => {
+    if (currentPage >= totalPages) {
+      setCurrentPage(Math.max(totalPages - 1, 0));
+    }
+  }, [currentPage, totalPages]);
+
+  const handlePageSizeChange = (e) => {
+    const numericValue = Number(e.target.value);
+
+    if (!Number.isFinite(numericValue)) {
+      return;
+    }
+
+    const nextPageSize = Math.max(1, Math.floor(numericValue));
+    setPageSize(nextPageSize);
+    setCurrentPage(0);
+  };
+
+  const handlePreviousPage = () => {
+    if (!canGoPrevious) return;
+    setCurrentPage((prev) => Math.max(prev - 1, 0));
+  };
+
+  const handleNextPage = () => {
+    if (!canGoNext) return;
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages - 1));
+  };
+
+  const downloadExcelFile = () => {
+    if (tableLoading || exportLoading || filteredTableRows.length === 0) {
+      return;
+    }
+
+    try {
+      setExportLoading(true);
+
+      const workbookRows =
+        selectedView === VIEW_OPTIONS.INBOUND
+          ? [
+              [
+                "S.No",
+                "Inbound Name",
+                "Alias Name",
+                "Idle time: Weekday (Inside business hours 09:00 AM to 07:00 PM)",
+                "Weekday (Outside Business 07:00 PM to 09:00 AM)",
+                "Idle time: Weekend (Inside business hours 09:00 AM to 07:00 PM)",
+                "Weekend (Outside Business 07:00 PM to 09:00 AM)",
+                "Is Monday ignore",
+                "IsCritical",
+                "Alert",
+                "UpdatedOn",
+              ],
+              ...filteredTableRows.map((row) => [
+                row.serialNo,
+                row.inboundName,
+                row.aliasName,
+                row.weekDayInside,
+                row.weekDayOutside,
+                row.weekendInside,
+                row.weekendOutside,
+                row.isMondayIgnore,
+                row.isCritical,
+                isAlertEnabled(row) ? "Enabled" : "Disabled",
+                row.updatedOn,
+              ]),
+            ]
+          : [
+              [
+                "S.No",
+                "Interface Name",
+                "Alias Name",
+                "IsCritical",
+                "Alert",
+                "UpdatedOn",
+              ],
+              ...filteredTableRows.map((row) => [
+                row.serialNo,
+                row.interfaceName,
+                row.aliasName,
+                row.isCritical,
+                isAlertEnabled(row) ? "Enabled" : "Disabled",
+                row.updatedOn,
+              ]),
+            ];
+
+      const worksheet = XLSX.utils.aoa_to_sheet(workbookRows);
+      worksheet["!cols"] =
+        selectedView === VIEW_OPTIONS.INBOUND
+          ? [
+              { wch: 8 },
+              { wch: 32 },
+              { wch: 24 },
+              { wch: 28 },
+              { wch: 28 },
+              { wch: 28 },
+              { wch: 28 },
+              { wch: 18 },
+              { wch: 12 },
+              { wch: 12 },
+              { wch: 22 },
+            ]
+          : [
+              { wch: 8 },
+              { wch: 32 },
+              { wch: 24 },
+              { wch: 12 },
+              { wch: 12 },
+              { wch: 22 },
+            ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Interface Alerts");
+
+      const safeViewName = selectedView.toLowerCase();
+      const safeTrustName = (selectedTrustName || "all-trusts")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+
+      XLSX.writeFile(
+        workbook,
+        `interface-alerts-${safeViewName}-${safeTrustName || "all-trusts"}.xlsx`
+      );
+    } catch (downloadError) {
+      console.error("Error downloading interface alerts:", downloadError);
+      setError("Unable to download Excel. Please try again later.");
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   const handleAddClick = () => {
     setEditingInterface(null);
@@ -520,6 +738,10 @@ export default function CriticalInterfaces({
 
   const openBulkAlertDialog = () => {
     if (tableRows.length === 0) return;
+    if (!selectedTrustId) {
+      setShowTrustSelectionDialog(true);
+      return;
+    }
     setShowBulkAlertDialog(true);
   };
 
@@ -527,15 +749,33 @@ export default function CriticalInterfaces({
     setShowBulkAlertDialog(false);
   };
 
+  const closeTrustSelectionDialog = () => {
+    setShowTrustSelectionDialog(false);
+  };
+
   const confirmBulkAlertChange = async () => {
     try {
       setError("");
       const nextDeletedStatus = !allAlertsEnabled;
 
+      console.log("[AlertsModule] Bulk alert change:", {
+        trustId: selectedTrustId,
+        trustName: selectedTrustName,
+        view: selectedView,
+        isDeleted: nextDeletedStatus,
+        action: nextDeletedStatus ? "enable_all" : "disable_all",
+      });
+
       if (selectedView === VIEW_OPTIONS.INBOUND) {
-        await updateAllCriticalInboundReceiverAlerts(nextDeletedStatus);
+        await updateAllCriticalInboundReceiverAlerts({
+          isDeleted: nextDeletedStatus,
+          trustId: selectedTrustId,
+        });
       } else {
-        await updateAllCriticalInterfaceAlerts(nextDeletedStatus);
+        await updateAllCriticalInterfaceAlerts({
+          isDeleted: nextDeletedStatus,
+          trustId: selectedTrustId,
+        });
       }
 
       setShowBulkAlertDialog(false);
@@ -552,7 +792,7 @@ export default function CriticalInterfaces({
 
   if (showForm) {
     return (
-      <CriticalInterfaceForm
+      <AlertsModuleForm
         initial={editingInterface}
         trusts={trusts}
         defaultTrustId={selectedTrustId}
@@ -566,16 +806,26 @@ export default function CriticalInterfaces({
   return (
     <div className="content">
       <div className="critical-page-header">
-        <h2 className="critical-page-title">Critical interfaces</h2>
+        <h2 className="critical-page-title">Interface Alerts</h2>
       </div>
       <div className="critical-actions">
+        <button
+          type="button"
+          className="critical-download-btn"
+          onClick={downloadExcelFile}
+          disabled={tableLoading || exportLoading || filteredTableRows.length === 0}
+        >
+          <i className="ri-file-excel-2-line" aria-hidden="true"></i>
+          {exportLoading ? "Downloading..." : "Download Excel"}
+        </button>
+
         {isAdminUser && (
           <button
             type="button"
             className="critical-add-btn"
             onClick={handleAddClick}
           >
-            Add Critical Interface
+            Add Interface Alert
           </button>
         )}
       </div>
@@ -591,16 +841,19 @@ export default function CriticalInterfaces({
             className="critical-select"
             value={selectedTrustId}
             onChange={(e) => setSelectedTrustId(e.target.value)}
-            disabled={trustLoading || trusts.length === 0}
+            disabled={trusts.length === 0}
           >
             {trusts.length === 0 ? (
-              <option value="">No interfaces available</option>
+              <option value="">All Trusts</option>
             ) : (
-              trusts.map((trust) => (
-                <option key={trust.id} value={trust.id}>
-                  {trust.name}
-                </option>
-              ))
+              <>
+                <option value="">All Trusts</option>
+                {trusts.map((trust) => (
+                  <option key={trust.id} value={trust.id}>
+                    {trust.name}
+                  </option>
+                ))}
+              </>
             )}
           </select>
         </div>
@@ -619,6 +872,25 @@ export default function CriticalInterfaces({
             <option value={ALERT_FILTER_OPTIONS.ALL}>All</option>
             <option value={ALERT_FILTER_OPTIONS.ENABLED}>Enabled</option>
             <option value={ALERT_FILTER_OPTIONS.DISABLED}>Disabled</option>
+          </select>
+        </div>
+
+        <div className="critical-filter-group">
+          <label className="critical-label" htmlFor="critical-type-filter">
+            Type
+          </label>
+
+          <select
+            id="critical-type-filter"
+            className="critical-select"
+            value={selectedTypeFilter}
+            onChange={(e) => setSelectedTypeFilter(e.target.value)}
+          >
+            <option value={TYPE_FILTER_OPTIONS.ALL}>All</option>
+            <option value={TYPE_FILTER_OPTIONS.CRITICAL}>Critical</option>
+            <option value={TYPE_FILTER_OPTIONS.NON_CRITICAL}>
+              Non-critical
+            </option>
           </select>
         </div>
 
@@ -643,6 +915,8 @@ export default function CriticalInterfaces({
               title={
                 tableRows.length === 0
                   ? "No interfaces available"
+                  : !selectedTrustId
+                  ? "Select a trust to change all alerts"
                   : allAlertsEnabled
                   ? "Disable all alerts"
                   : "Enable all alerts"
@@ -693,14 +967,19 @@ export default function CriticalInterfaces({
                 {INBOUND_COLUMNS.map((column) => (
                   <th key={column.key}>{column.label}</th>
                 ))}
+                <th>IsCritical</th>
                 <th className="critical-alert-col">Alert</th>
+                <th>UpdatedOn</th>
                 {isAdminUser && <th>Actions</th>}
               </tr>
             ) : (
               <tr>
                 <th>S.No</th>
                 <th>Interface Name</th>
+                <th>Alias Name</th>
+                <th>IsCritical</th>
                 <th className="critical-alert-col">Alert</th>
+                <th>UpdatedOn</th>
                 {isAdminUser && <th>Actions</th>}
               </tr>
             )}
@@ -713,11 +992,11 @@ export default function CriticalInterfaces({
                   colSpan={
                     selectedView === VIEW_OPTIONS.INBOUND
                       ? isAdminUser
-                        ? 9
-                        : 8
+                        ? 12
+                        : 11
                       : isAdminUser
-                        ? 4
-                        : 3
+                        ? 7
+                        : 6
                   }
                   className="critical-empty-row"
                 >
@@ -732,11 +1011,11 @@ export default function CriticalInterfaces({
                   colSpan={
                     selectedView === VIEW_OPTIONS.INBOUND
                       ? isAdminUser
-                        ? 9
-                        : 8
+                        ? 12
+                        : 11
                       : isAdminUser
-                        ? 4
-                        : 3
+                        ? 7
+                        : 6
                   }
                   className="critical-empty-row"
                 >
@@ -746,16 +1025,22 @@ export default function CriticalInterfaces({
             )}
 
             {!tableLoading &&
-              filteredTableRows.map((row) =>
+              paginatedTableRows.map((row) =>
                 selectedView === VIEW_OPTIONS.INBOUND ? (
                   <tr key={row.id}>
                     <td>{row.serialNo}</td>
                     <td>{row.inboundName}</td>
+                    <td>{row.aliasName}</td>
                     <td>{row.weekDayInside}</td>
                     <td>{row.weekDayOutside}</td>
                     <td>{row.weekendInside}</td>
                     <td>{row.weekendOutside}</td>
-                    <td>{row.isMondayIgnore}</td>
+                    <td>
+                      <span className={`monday-badge ${row.isMondayIgnore === "Yes" ? "yes" : "no"}`}>
+                        {row.isMondayIgnore}
+                      </span>
+                    </td>
+                    <td>{row.isCritical}</td>
                     <td className="critical-alert-cell">
                       <button
                         type="button"
@@ -781,6 +1066,7 @@ export default function CriticalInterfaces({
                         </span>
                       </button>
                     </td>
+                    <td>{row.updatedOn}</td>
                     {isAdminUser && (
                       <td>
                         <div className="critical-action-buttons">
@@ -809,6 +1095,8 @@ export default function CriticalInterfaces({
                   <tr key={row.id}>
                     <td>{row.serialNo}</td>
                     <td>{row.interfaceName}</td>
+                    <td>{row.aliasName}</td>
+                    <td>{row.isCritical}</td>
                     <td className="critical-alert-cell">
                       <button
                         type="button"
@@ -834,6 +1122,7 @@ export default function CriticalInterfaces({
                         </span>
                       </button>
                     </td>
+                    <td>{row.updatedOn}</td>
                     {isAdminUser && (
                       <td>
                         <div className="critical-action-buttons">
@@ -863,6 +1152,50 @@ export default function CriticalInterfaces({
           </tbody>
         </table>
       </div>
+
+      {!tableLoading && filteredTableRows.length > 0 && (
+        <div className="paginationControls">
+          <div className="paginationShowing">
+            Showing {paginationStart} to {paginationEnd}
+          </div>
+
+          <div className="paginationPages">
+            <label className="critical-pagination-label critical-page-size-wrapper">
+              Page Size:
+              <input
+                type="number"
+                className="critical-page-size-input"
+                value={pageSize}
+                min={1}
+                step={1}
+                onChange={handlePageSizeChange}
+              />
+            </label>
+
+            <button
+              type="button"
+              className="paginationBtn"
+              onClick={handlePreviousPage}
+              disabled={!canGoPrevious}
+            >
+              Prev
+            </button>
+
+            <span className="paginationInfo">
+              Page {displayPage} of {totalPages}
+            </span>
+
+            <button
+              type="button"
+              className="paginationBtn"
+              onClick={handleNextPage}
+              disabled={!canGoNext}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {alertDialogRow && (
         <div className="critical-modal-overlay" role="dialog" aria-modal="true">
@@ -924,6 +1257,27 @@ export default function CriticalInterfaces({
                 onClick={confirmBulkAlertChange}
               >
                 Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTrustSelectionDialog && (
+        <div className="critical-modal-overlay" role="dialog" aria-modal="true">
+          <div className="critical-modal">
+            <h3>Select One Trust</h3>
+            <p>
+              Bulk enable or disable is available only for a single trust.
+              Please select one trust and try again.
+            </p>
+            <div className="critical-modal-actions">
+              <button
+                type="button"
+                className="critical-modal-confirm"
+                onClick={closeTrustSelectionDialog}
+              >
+                OK
               </button>
             </div>
           </div>

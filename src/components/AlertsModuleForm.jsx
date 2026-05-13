@@ -2,26 +2,40 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   createCriticalInterface,
   updateCriticalInterface,
-} from "../api/metricsService";
+} from "../api/criticalInterfacesService";
 import "./TrustForm.css";
-import "./CriticalInterfaceForm.css";
+import "./AlertsModuleForm.css";
 
 const VIEW_OPTIONS = {
   INBOUND: "INBOUND",
   OTHER: "OTHER",
 };
 
+const DEFAULT_ALERT_ENABLED = true;
+
 const getFirstDefinedValue = (item, keys, fallback = "") => {
   for (const key of keys) {
     const value = item?.[key];
 
-    if (value !== undefined && value !== null && String(value).trim() !== "") {
+    if (
+      value !== undefined &&
+      value !== null &&
+      String(value).trim() !== "" &&
+      String(value).trim() !== "-"
+    ) {
       return String(value).trim();
     }
   }
 
   return fallback;
 };
+
+const getInitialValue = (initial, keys, fallback = "") =>
+  getFirstDefinedValue(
+    initial?.rawItem,
+    keys,
+    getFirstDefinedValue(initial, keys, fallback)
+  );
 
 const getBooleanValue = (item, keys, fallback = false) => {
   for (const key of keys) {
@@ -57,11 +71,17 @@ const createInitialForm = (initial, defaultTrustId, defaultView) => ({
         ""
     ) || "",
   interfaceType: initial?.interfaceType || defaultView || VIEW_OPTIONS.INBOUND,
-  serviceName: getFirstDefinedValue(initial?.rawItem, [
+  serviceName: getInitialValue(initial, [
     "serviceName",
+    "inboundName",
     "interfaceName",
     "interface_name",
     "name",
+  ]),
+  aliasName: getInitialValue(initial, [
+    "aliasName",
+    "alias_name",
+    "alias",
   ]),
   weekDayInside: getFirstDefinedValue(initial?.rawItem, [
     "dayIdleTime",
@@ -91,7 +111,16 @@ const createInitialForm = (initial, defaultTrustId, defaultView) => ({
     "isMondayIgnore",
     "mondayIgnore",
   ]),
-  deleted: getBooleanValue(initial?.rawItem, ["deleted", "isDeleted"], false),
+  isCritical: getBooleanValue(initial?.rawItem, [
+    "isCritical",
+    "critical",
+    "is_critical",
+  ], true),
+  deleted: getBooleanValue(
+    initial?.rawItem,
+    ["deleted", "isDeleted"],
+    DEFAULT_ALERT_ENABLED
+  ),
   interfaceName: getFirstDefinedValue(initial?.rawItem, [
     "endpointName",
     "queueName",
@@ -101,7 +130,7 @@ const createInitialForm = (initial, defaultTrustId, defaultView) => ({
   ]),
 });
 
-export default function CriticalInterfaceForm({
+export default function AlertsModuleForm({
   initial = null,
   trusts = [],
   defaultTrustId = "",
@@ -138,12 +167,18 @@ export default function CriticalInterfaceForm({
     "trustId",
     "interfaceType",
     "serviceName",
+    "aliasName",
     "weekDayInside",
     "weekDayOutside",
     "weekendInside",
     "weekendOutside",
   ];
-  const otherValidationOrder = ["trustId", "interfaceType", "interfaceName"];
+  const otherValidationOrder = [
+    "trustId",
+    "interfaceType",
+    "interfaceName",
+    "aliasName",
+  ];
 
   const getFieldError = (field, nextForm) => {
     switch (field) {
@@ -153,6 +188,8 @@ export default function CriticalInterfaceForm({
         return nextForm.interfaceType ? "" : "Component type is required";
       case "serviceName":
         return nextForm.serviceName.trim() ? "" : "Inbound name is required";
+      case "aliasName":
+        return nextForm.aliasName.trim() ? "" : "Alias name is required";
       case "weekDayInside":
         if (!nextForm.weekDayInside.trim()) {
           return "Weekday inside business hours is required";
@@ -297,6 +334,7 @@ export default function CriticalInterfaceForm({
     if (isInbound) {
       return (
         Boolean(form.serviceName.trim()) &&
+        Boolean(form.aliasName.trim()) &&
         /^\d+$/.test(form.weekDayInside.trim()) &&
         /^\d+$/.test(form.weekDayOutside.trim()) &&
         /^\d+$/.test(form.weekendInside.trim()) &&
@@ -304,7 +342,7 @@ export default function CriticalInterfaceForm({
       );
     }
 
-    return Boolean(form.interfaceName.trim());
+    return Boolean(form.interfaceName.trim()) && Boolean(form.aliasName.trim());
   }, [form, isInbound]);
 
   const toggleAlertStatus = () => {
@@ -328,10 +366,16 @@ export default function CriticalInterfaceForm({
     if (!validate()) return;
 
     const trustId = Number(form.trustId);
+    const {
+      interfaceName: _interfaceName,
+      interface_name: _interfaceNameSnake,
+      ...otherRawItem
+    } = initial?.rawItem || {};
     const payload = isInbound
       ? {
           ...(initial?.rawItem || {}),
           serviceName: form.serviceName.trim(),
+          aliasName: form.aliasName.trim(),
           trustId,
           trustName: selectedTrustName,
           dayIdleTime: Number(form.weekDayInside.trim()),
@@ -339,12 +383,14 @@ export default function CriticalInterfaceForm({
           weDayIdleTime: Number(form.weekendInside.trim()),
           weNightIdleTime: Number(form.weekendOutside.trim()),
           isMondayIgnore: Boolean(form.isMondayIgnore),
+          isCritical: Boolean(form.isCritical),
           deleted: Boolean(form.deleted),
         }
       : {
-          ...(initial?.rawItem || {}),
+          ...otherRawItem,
           endpointName: form.interfaceName.trim(),
-          interfaceName: form.interfaceName.trim(),
+          aliasName: form.aliasName.trim(),
+          isCritical: Boolean(form.isCritical),
           deleted: Boolean(form.deleted),
           trustId,
           trustName: selectedTrustName,
@@ -354,28 +400,28 @@ export default function CriticalInterfaceForm({
       setLoading(true);
 
       if (isEditMode) {
-        console.log("Critical interface update payload:", payload);
+        console.log("AlertsModule update payload:", payload);
         await updateCriticalInterface({
           trustId,
           interfaceType: form.interfaceType,
           interfaceId: initial.id,
           payload,
         });
-        setSuccess("Critical interface updated successfully");
+        setSuccess("AlertsModule updated successfully");
       } else {
-        console.log("Critical interface create payload:", payload);
+        console.log("AlertsModule create payload:", payload);
         await createCriticalInterface({
           trustId,
           interfaceType: form.interfaceType,
           payload,
         });
-        setSuccess("Critical interface created successfully");
+        setSuccess("AlertsModule created successfully");
       }
 
       onSuccess?.(form.interfaceType);
     } catch (submitError) {
-      console.error("Critical interface save failed:", submitError);
-      setError(submitError.message || "Failed to save critical interface");
+      console.error("AlertsModule save failed:", submitError);
+      setError(submitError.message || "Failed to save AlertsModule");
     } finally {
       setLoading(false);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -385,7 +431,7 @@ export default function CriticalInterfaceForm({
   return (
     <div className="content">
       <h2 className="form-title">
-        {isEditMode ? "Edit Critical Interface" : "Add Critical Interface"}
+        {isEditMode ? "Edit Interface Alert" : "Add Interface Alert"}
       </h2>
 
       <div className="critical-form-actions">
@@ -398,7 +444,7 @@ export default function CriticalInterfaceForm({
           className="critical-list-btn"
           onClick={onCancel}
         >
-          List of Critical Interfaces
+          List of Interface Alerts
         </button>
       </div>
 
@@ -449,6 +495,19 @@ export default function CriticalInterfaceForm({
             />
             {errors.serviceName && (
               <p className="input-error">{errors.serviceName}</p>
+            )}
+
+            <label className="form-label">Alias Name*</label>
+            <input
+              className={`form-input ${errors.aliasName ? "input-invalid" : ""}`}
+              value={form.aliasName}
+              onChange={(e) => handleChange("aliasName", e.target.value)}
+              onFocus={() => handleFieldFocus("aliasName")}
+              onBlur={() => handleFieldBlur("aliasName")}
+              placeholder="Enter alias name"
+            />
+            {errors.aliasName && (
+              <p className="input-error">{errors.aliasName}</p>
             )}
 
             <div className="group">
@@ -573,6 +632,30 @@ export default function CriticalInterfaceForm({
               </div>
 
               <div className="col">
+                <label className="form-label">Is Critical</label>
+                <div className="toggle-group">
+                  <button
+                    type="button"
+                    className={`toggle-btn yes ${
+                      form.isCritical ? "active" : ""
+                    }`}
+                    onClick={() => handleChange("isCritical", true)}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    className={`toggle-btn no ${
+                      !form.isCritical ? "active" : ""
+                    }`}
+                    onClick={() => handleChange("isCritical", false)}
+                  >
+                    No
+                  </button>
+                </div>
+              </div>
+
+              <div className="col">
                 <label className="form-label">Alert</label>
                 <button
                   type="button"
@@ -607,7 +690,44 @@ export default function CriticalInterfaceForm({
               <p className="input-error">{errors.interfaceName}</p>
             )}
 
+            <label className="form-label">Alias Name*</label>
+            <input
+              className={`form-input ${errors.aliasName ? "input-invalid" : ""}`}
+              value={form.aliasName}
+              onChange={(e) => handleChange("aliasName", e.target.value)}
+              onFocus={() => handleFieldFocus("aliasName")}
+              onBlur={() => handleFieldBlur("aliasName")}
+              placeholder="Enter alias name"
+            />
+            {errors.aliasName && (
+              <p className="input-error">{errors.aliasName}</p>
+            )}
+
             <div className="row critical-form-switch-row">
+              <div className="col">
+                <label className="form-label">Is Critical</label>
+                <div className="toggle-group">
+                  <button
+                    type="button"
+                    className={`toggle-btn yes ${
+                      form.isCritical ? "active" : ""
+                    }`}
+                    onClick={() => handleChange("isCritical", true)}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    className={`toggle-btn no ${
+                      !form.isCritical ? "active" : ""
+                    }`}
+                    onClick={() => handleChange("isCritical", false)}
+                  >
+                    No                  
+                  </button>
+                </div>
+              </div>
+
               <div className="col">
                 <label className="form-label">Alert</label>
                 <button

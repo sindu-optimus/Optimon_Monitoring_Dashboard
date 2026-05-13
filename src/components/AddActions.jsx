@@ -16,6 +16,7 @@ import {
   faUnderline,
   faListOl,
   faListUl,
+  faCircleInfo,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "./AddActions.css";
@@ -201,9 +202,6 @@ const AddActions = ({
     if (field === "interfaceName") return setErrors(err);
 
     if (!getReasonValue()) err.issue = "Describe the reason is required";
-    if (selectedReason === "Others" && customReason.trim().length > 20) {
-      err.issue = "Other reason must be 20 characters or less";
-    }
     if (field === "issue") return setErrors(err);
 
     if (!getActionText()) {
@@ -222,9 +220,6 @@ const AddActions = ({
       err.interfaceName = "Interface name is required";
     }
     if (!getReasonValue()) err.issue = "Describe the reason is required";
-    if (selectedReason === "Others" && customReason.trim().length > 20) {
-      err.issue = "Other reason must be 20 characters or less";
-    }
     if (!getActionText()) {
       err.action = "Proposed action is required";
     }
@@ -237,7 +232,6 @@ const AddActions = ({
     selectedTrustId &&
     interfaceName.trim() &&
     getReasonValue() &&
-    (selectedReason !== "Others" || customReason.trim().length <= 20) &&
     getActionText();
 
   const resetForm = () => {
@@ -350,7 +344,16 @@ const AddActions = ({
       {error && <div className="form-msg form-error">{error}</div>}
       {success && <div className="form-msg form-success">{success}</div>}
 
-      <form className="form" onSubmit={handleSubmit} noValidate>
+      <form className="form actions-form" onSubmit={handleSubmit} noValidate>
+        <span
+          className="actions-refresh-info"
+          data-tooltip="This form refreshes every minute to make sure the interface names are always up to date with the latest data."
+          tabIndex={0}
+          aria-label="This form refreshes every minute to make sure the interface names are always up to date with the latest dashboard data."
+        >
+          <FontAwesomeIcon icon={faCircleInfo} />
+        </span>
+
         <div className="form-group">
           <label>Trust Name*</label>
           <select
@@ -430,13 +433,11 @@ const AddActions = ({
             <input
               type="text"
               value={customReason}
-              maxLength="20"
               placeholder="Enter other reason"
               className={errors.issue ? "input-invalid" : ""}
               onFocus={() => validateUpTo("issue")}
               onChange={(e) => {
-                const nextCustomReason = e.target.value.slice(0, 20);
-                setCustomReason(nextCustomReason);
+                setCustomReason(e.target.value);
                 if (errors.issue) {
                   setErrors((prev) => ({ ...prev, issue: null }));
                 }

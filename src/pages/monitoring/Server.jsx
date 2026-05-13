@@ -4,6 +4,7 @@ import ServerCard from "./ServerCard";
 import "./Server.css";
 
 export default function Server({
+  trustId,
   serverName,
   bgColor,
   inbound = [],
@@ -27,7 +28,7 @@ export default function Server({
   };
 
   const computeQueueCritical = (pending, limit) => {
-    const p = Number(String(pending).replace(/[^\d]/g, "")) || 0;
+    const p = getPendingCount(pending);
     return p >= limit;
   };
 
@@ -37,8 +38,7 @@ export default function Server({
   };
 
   const getQueueTrend = (trendKey, currentCount) => {
-    const count =
-      Number(String(currentCount).replace(/[^\d]/g, "")) || 0;
+    const count = getPendingCount(currentCount);
 
     const trends = getQueueTrends();
 
@@ -101,6 +101,9 @@ export default function Server({
   //   return trend;
   // };
 
+  const getPendingCount = (value) =>
+    Number(String(value ?? "").replace(/[^\d]/g, "")) || 0;
+
   const queues = useMemo(() => {
     return queue
       .map((q) => {
@@ -116,7 +119,9 @@ export default function Server({
         return {
           id: q.id,
           trustId: q.trustId,
-          name: q.queueName ?? "Unknown",
+          name: q.aliasName || q.queueName || "Unknown",
+          queueName: q.queueName || "Unknown",
+          aliasName: q.aliasName,
           pending,
           critical,
           trend: getQueueTrend(
@@ -128,8 +133,7 @@ export default function Server({
       .sort(
         (a, b) =>
           b.critical - a.critical ||
-          Number(b.pending.replace(/\D/g, "")) -
-            Number(a.pending.replace(/\D/g, ""))
+          getPendingCount(b.pending) - getPendingCount(a.pending)
       );
   }, [queue, queueWarningLimit]);
 
@@ -147,7 +151,9 @@ export default function Server({
     return inbound
       .map((ep) => ({
         id: ep.id,
+        trustId: ep.trustId ?? trustId,
         name: ep.serviceName ?? "Unknown",
+        serviceName: ep.serviceName ?? "Unknown",
         idleTime: ep.timeDelay ?? "0",
         critical: computeEndpointCritical(
           ep.timeDelay,
@@ -191,6 +197,7 @@ export default function Server({
     >
       <ServerCard
         serverName={serverName}
+        trustId={trustId}
         bgColor={bgColor}
         queues={queues}
         endpoints={endpoints}

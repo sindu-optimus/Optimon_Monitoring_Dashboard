@@ -14,12 +14,14 @@ export default function AdminSidebar({ isAdminUser = false }) {
 
   const menuItems = [
     { name: "Support Actions", path: "/admin/support-actions", icon: "ri-history-line", activeIcon: "ri-history-fill" },
-    { name: "Critial Interface", path: "/admin/critical-interfaces", icon: "ri-alert-line", activeIcon: "ri-alert-fill" },
+    { name: "Alerts Module", path: "/admin/critical-interfaces", icon: "ri-alert-line", activeIcon: "ri-alert-fill" },
+    { name: "Message Trend", path: "/admin/message-trend", icon: "ri-file-chart-line", activeIcon: "ri-file-chart-fill" },
     { name: "Trusts List", path: "/admin/add-trusts", icon: "ri-shield-check-line", activeIcon: "ri-shield-check-fill" },
     { name: "Send Mail", path: "/admin/send-email", icon: "ri-send-plane-line", activeIcon: "ri-send-plane-fill" },
     { name: "FAQs", path: "/admin/faqs", icon: "ri-question-line", activeIcon: "ri-question-fill" },
     { name: "Users", path: "/admin/add-users", icon: "ri-team-line", activeIcon: "ri-team-fill" },
     { name: "Interfaces", path: "/admin/summary-interfaces", icon: "ri-bar-chart-line", activeIcon: "ri-bar-chart-fill" },
+    { name: "Support Comms", path: "/admin/support-comms", icon: "ri-mail-line", activeIcon: "ri-mail-fill" },
     { name: "Profile", path: "/admin/profile", icon: "ri-user-line", activeIcon: "ri-user-fill" },
     { name: "Settings", path: "/admin/settings", icon: "ri-settings-3-line", activeIcon: "ri-settings-3-fill" },
   ].filter((item) => {

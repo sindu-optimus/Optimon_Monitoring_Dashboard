@@ -10,6 +10,12 @@ const getStartOfLookbackWindow = () => {
   return fromDate;
 };
 
+const addDays = (date, days) => {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+};
+
 const toApiDate = (date) => {
   const pad = (part) => String(part).padStart(2, "0");
 
@@ -22,7 +28,7 @@ const toApiDate = (date) => {
 
 const getDefaultDateParams = () => ({
   fromDate: toApiDate(getStartOfLookbackWindow()),
-  toDate: toApiDate(new Date()),
+  toDate: toApiDate(addDays(new Date(), 1)),
 });
 
 // GET all support issues

@@ -59,10 +59,15 @@
 
 .critical-form-switch-row {
   margin: 8px 0 24px;
+  flex-wrap: wrap;
 }
 
 .critical-form-switch-row .form-label {
   margin-bottom: 10px;
+}
+
+.critical-form-switch-row .col {
+  min-width: 180px;
 }
 
 .critical-form-switch-row .critical-switch {

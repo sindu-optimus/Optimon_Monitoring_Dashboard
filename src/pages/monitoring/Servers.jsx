@@ -6,6 +6,33 @@ import { getSupportIssues } from "../../api/supportService";
 import { getTrustMeta } from "../../utils/trustData";
 import "./Servers.css";
 
+const DASHBOARD_SUPPORT_LOOKBACK_DAYS = 365;
+
+const toApiDate = (date) => {
+  const pad = (part) => String(part).padStart(2, "0");
+
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join("-");
+};
+
+const getDashboardSupportIssueParams = () => {
+  const fromDate = new Date();
+  fromDate.setHours(0, 0, 0, 0);
+  fromDate.setDate(fromDate.getDate() - (DASHBOARD_SUPPORT_LOOKBACK_DAYS - 1));
+
+  const toDate = new Date();
+  toDate.setDate(toDate.getDate() + 1);
+
+  return {
+    fromDate: toApiDate(fromDate),
+    toDate: toApiDate(toDate),
+    isDeleted: false,
+  };
+};
+
 function extractServersFromData(dataList, colorMapRef) {
   if (!Array.isArray(dataList)) return [];
 
@@ -110,7 +137,9 @@ export default function Servers({
 
     const loadSupportIssues = async () => {
       try {
-        const supportRes = await getSupportIssues();
+        const supportRes = await getSupportIssues(
+          getDashboardSupportIssueParams()
+        );
 
         if (!isActive) return;
 

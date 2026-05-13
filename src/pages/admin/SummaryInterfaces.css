@@ -71,7 +71,7 @@
   background: #ffffff;
   border-radius: 12px;
   overflow-x: auto;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #d6dde6;
 }
 
 .interfaces-table {
@@ -83,25 +83,34 @@
 .interfaces-table th,
 .interfaces-table td {
   padding: 14px 16px;
-  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e0e6ed;
   text-align: left;
   vertical-align: middle;
 }
 
 .interfaces-table th:not(:last-child),
 .interfaces-table td:not(:last-child) {
-  border-right: 1px solid #e2e8f0;
+  border-right: 1px solid #e0e6ed;
 }
 
 .interfaces-table thead th {
-  background: #f1f5f9;
-  font-weight: 600;
-  color: #334155;
-  border-top: none;
+  background: #eef4f9;
+  font-weight: 700;
+  color: #243447;
+  border-right: 1px solid #d6dde6;
+  border-bottom: 1px solid #c8d2dc;
 }
 
-.interfaces-table tbody tr:hover {
-  background: #f8fafc;
+.interfaces-table thead th:last-child {
+  border-right: none;
+}
+
+.interfaces-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.interfaces-table tbody tr:hover td {
+  background: #f9fbfd;
 }
 
 .interface-name {

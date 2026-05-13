@@ -1,11 +1,54 @@
 // ServerDetails.jsx
-import { useParams, useNavigate, Outlet } from "react-router-dom";
+import { useParams, useNavigate, Outlet, useLocation } from "react-router-dom";
 import SidebarLayout from "../../layouts/SidebarLayout";
+import "remixicon/fonts/remixicon.css";
 import "./ServerDetails.css";
 
 export default function ServerDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const { queueName: stateQueueName, aliasName: stateAliasName } =
+    location.state || {};
+  const {
+    trustId: stateTrustId,
+    trustName: stateTrustName,
+    serviceName: stateServiceName,
+    interfaceName: stateInterfaceName,
+    direction: stateDirection,
+  } = location.state || {};
+  const queueName = stateQueueName || searchParams.get("queueName");
+  const aliasName = stateAliasName || searchParams.get("aliasName");
+  const trustId = stateTrustId || searchParams.get("trustId");
+  const trustName = stateTrustName || searchParams.get("trustName");
+  const serviceName = stateServiceName || searchParams.get("serviceName");
+  const interfaceName =
+    stateInterfaceName ||
+    searchParams.get("interfaceName") ||
+    serviceName ||
+    queueName ||
+    aliasName ||
+    id;
+  const direction = stateDirection || searchParams.get("direction");
+  const displayName =
+    aliasName && queueName ? `${aliasName} (${queueName})` : aliasName || id;
+  const openSendMailForm = () => {
+    if (!id) return;
+
+    navigate(`/action/${encodeURIComponent(id)}/send-email${location.search}`, {
+      state: {
+        ...location.state,
+        queueName,
+        aliasName,
+        trustId,
+        trustName,
+        serviceName,
+        interfaceName,
+        direction,
+      },
+    });
+  };
 
   return (
     <SidebarLayout>
@@ -18,7 +61,17 @@ export default function ServerDetails() {
             </div>
           </div>
 
-          <h3 className="name">{id}</h3>
+          <h3 className="name">{displayName}</h3>
+
+          <button
+            type="button"
+            className="server-mail-btn"
+            onClick={openSendMailForm}
+            title="Open send mail form"
+            aria-label="Open send mail form"
+          >
+            <i className="ri-mail-send-line"></i>
+          </button>
         </div>
 
         <hr />

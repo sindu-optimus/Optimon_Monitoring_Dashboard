@@ -21,7 +21,9 @@ export default function Sidebar() {
 
   const handleNavigate = (subPath) => {
     if (!id) return;
-    navigate(`/action/${id}/${subPath}`);
+    navigate(`/action/${id}/${subPath}${location.search}`, {
+      state: location.state,
+    });
     setIsOpen(false); // close sidebar on mobile after click
   };
 

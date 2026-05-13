@@ -44,6 +44,18 @@ const formatDateInputValue = (date) => {
   ].join("-");
 };
 
+const addDaysToDateInputValue = (value, days) => {
+  const date = parseDateInputValue(value);
+
+  if (!date) {
+    return value;
+  }
+
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return formatDateInputValue(nextDate);
+};
+
 const parseDateInputValue = (value) => {
   if (!value) return null;
 
@@ -250,7 +262,7 @@ const buildSupportActionQueryParams = ({
 
   if (fromDate) {
     params.fromDate = fromDate;
-    params.toDate = toDate || todayDateValue;
+    params.toDate = addDaysToDateInputValue(toDate || todayDateValue, 1);
   }
 
   if (trustId) {
@@ -385,7 +397,28 @@ const SupportActions = ({ isAdminUser = false, userProfile = null }) => {
       return;
     }
 
-    fetchActions();
+    const today = getTodayDateInputValue();
+    const from = formatDateInputValue(
+      getPastDaysCutoff(SUPPORT_ACTION_LOOKBACK_DAYS)
+    );
+
+    setFromDate(from);
+    setToDate(today);
+
+    setAppliedFromDate(from);
+    setAppliedToDate(today);
+
+    const params = buildSupportActionQueryParams({
+      fromDate: from,
+      toDate: today,
+      trustId: selectedTrustId,
+      status: selectedStatus,
+      todayDateValue,
+      page: 0,
+      size: pageSize,
+    });
+
+    fetchActions(params);
   }, [issueId, isDetailView]);
 
   useEffect(() => {
