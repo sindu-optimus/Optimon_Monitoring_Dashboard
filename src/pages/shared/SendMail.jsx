@@ -15,7 +15,7 @@ import {
   getCriticalInboundReceivers,
   getCriticalInterfaces,
 } from "../../api/criticalInterfacesService";
-import { getSupportContactsByTrustInterfaceAndDirection } from "../../api/supportContactsService";
+import { getSupportContactsByDirection } from "../../api/supportContactsService";
 
 import "./SendMail.css";
 
@@ -115,6 +115,16 @@ const getTypeFromDirection = (direction) =>
     ? TYPE_OPTIONS.IDLE_TIME
     : TYPE_OPTIONS.QUEUE;
 
+const normalizeDirection = (value) => {
+  const upperValue = String(value ?? "").trim().toUpperCase();
+
+  if (upperValue === "INBOUND" || upperValue === TYPE_OPTIONS.IDLE_TIME) {
+    return "INBOUND";
+  }
+
+  return "OUTBOUND";
+};
+
 const normalizeDelimitedValues = (value) => {
   if (Array.isArray(value)) {
     return value.map((item) => String(item).trim()).filter(Boolean);
@@ -150,6 +160,36 @@ const getSupportPhoneNumbers = (item) =>
 
 const uniqueValues = (values) =>
   Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+
+const getSupportContactTrustId = (item) =>
+  item?.trustId ??
+  item?.trust_id ??
+  item?.trust?.id ??
+  item?.trust?.trustId ??
+  item?.interfaceTrustId;
+
+const getSupportContactInterfaceId = (item) =>
+  item?.interfaceId ??
+  item?.interface_id ??
+  item?.criticalInterfaceId ??
+  item?.intefaceId ??
+  item?.inboundReceiverId ??
+  item?.interface?.id;
+
+const getSupportContactInterfaceName = (item) =>
+  getFirstValue(item, [
+    "interfaceName",
+    "interface_name",
+    "endpointName",
+    "queueName",
+    "serviceName",
+    "name",
+    "criticalInterfaceName",
+  ]) || getFirstValue(item?.interface, ["name", "interfaceName"]);
+
+const namesMatch = (left, right) =>
+  String(left ?? "").trim().toLowerCase() ===
+  String(right ?? "").trim().toLowerCase();
 
 const SendMail = () => {
   const location = useLocation();
@@ -330,6 +370,8 @@ const SendMail = () => {
   }, [selectedTrustId, selectedType]);
 
   useEffect(() => {
+    let isActive = true;
+
     const fetchSupportContacts = async () => {
       const currentInterfaceName = isOtherInterface
         ? customInterfaceName.trim()
@@ -352,21 +394,34 @@ const SendMail = () => {
         setSupportContactLoading(true);
         setSupportContactError("");
 
-        const searchParams = {
-          trustId: selectedTrustId,
-          trustName: selectedTrustName,
-          interfaceName: currentInterfaceName,
+        const response = await getSupportContactsByDirection(
           direction,
-        };
-
-        console.log("[SendMail] Support contacts search params:", searchParams);
-
-        const response = await getSupportContactsByTrustInterfaceAndDirection(
-          searchParams
+          selectedTrustId
         );
-        const contacts = getListFromApiResponse(response);
+        const contacts = getListFromApiResponse(response).filter((contact) => {
+          const contactTrustId = getSupportContactTrustId(contact);
+          const contactDirection = normalizeDirection(
+            contact?.direction ?? contact?.type ?? contact?.selectedDirection
+          );
+          const contactInterfaceId = getSupportContactInterfaceId(contact);
+          const contactInterfaceName = getSupportContactInterfaceName(contact);
+          const trustMatches =
+            contactTrustId === undefined ||
+            contactTrustId === null ||
+            String(contactTrustId) === String(selectedTrustId);
+          const directionMatches = contactDirection === direction;
+          const interfaceMatches =
+            String(contactInterfaceId ?? "") === String(selectedInterfaceId) ||
+            namesMatch(contactInterfaceName, currentInterfaceName);
+
+          return trustMatches && directionMatches && interfaceMatches;
+        });
         const supportEmails = uniqueValues(contacts.flatMap(getSupportEmails));
         const phoneNumbers = uniqueValues(contacts.flatMap(getSupportPhoneNumbers));
+
+        if (!isActive) {
+          return;
+        }
 
         setTo(supportEmails);
         setSupportPhoneNumbers(phoneNumbers);
@@ -375,19 +430,28 @@ const SendMail = () => {
           setErrors((prev) => (prev.to ? { ...prev, to: null } : prev));
         }
       } catch (err) {
+        if (!isActive) {
+          return;
+        }
+
         console.error("Error fetching support contacts:", err);
         setTo([]);
         setSupportPhoneNumbers([]);
         setSupportContactError("Unable to load support contacts for this interface.");
       } finally {
-        setSupportContactLoading(false);
+        if (isActive) {
+          setSupportContactLoading(false);
+        }
       }
     };
 
     fetchSupportContacts();
+
+    return () => {
+      isActive = false;
+    };
   }, [
     selectedTrustId,
-    selectedTrustName,
     selectedType,
     selectedInterfaceId,
     interfaceSearchValue,

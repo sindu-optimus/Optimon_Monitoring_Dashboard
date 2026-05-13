@@ -180,6 +180,7 @@ const buildSupportContactPayload = (payload) => {
     Object.prototype.hasOwnProperty.call(payload, "supportName")
   ) {
     return {
+      trustId: Number(payload.trustId) || undefined,
       direction: String(payload.direction ?? ""),
       email: String(payload.email ?? ""),
       interfaceId: Number(payload.interfaceId) || 0,
@@ -192,6 +193,7 @@ const buildSupportContactPayload = (payload) => {
   const supportEmails = normalizeEmails(payload?.supportEmails);
 
   return {
+    trustId: Number(payload?.trustId) || undefined,
     interfaceId: Number(payload?.interfaceId ?? payload?.criticalInterfaceId) || 0,
     direction:
       normalizeDirection(payload?.direction ?? payload?.type) ===
@@ -247,6 +249,12 @@ export default function SupportComms({ userProfile = null }) {
   }, [userProfile]);
 
   const loadSupportContacts = async () => {
+    if (!selectedTrustId) {
+      setSupportContacts([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -255,10 +263,13 @@ export default function SupportComms({ userProfile = null }) {
 
       // If direction selected → call filtered API
       if (selectedDirection) {
-        response = await getSupportContactsByDirection(selectedDirection);
+        response = await getSupportContactsByDirection(
+          selectedDirection,
+          selectedTrustId
+        );
       } else {
         // Default → get all
-        response = await getSupportContacts();
+        response = await getSupportContacts(selectedTrustId);
       }
 
       setSupportContacts(getListFromApiResponse(response));
@@ -273,7 +284,7 @@ export default function SupportComms({ userProfile = null }) {
 
   useEffect(() => {
     loadSupportContacts();
-  }, [selectedDirection]);
+  }, [selectedDirection, selectedTrustId]);
 
   useEffect(() => {
     if (selectedTrustId || trusts.length === 0) {
@@ -382,7 +393,14 @@ export default function SupportComms({ userProfile = null }) {
   };
 
   const handleSuccess = async (payload) => {
-    const requestPayload = buildSupportContactPayload(payload);
+    const trustId = payload?.trustId ?? editingItem?.trustId ?? selectedTrustId;
+    const requestPayload = {
+      ...buildSupportContactPayload({
+        ...payload,
+        trustId,
+      }),
+      trustId: Number(trustId),
+    };
 
     try {
       if (editingItem?.id) {

@@ -429,7 +429,10 @@ export default function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="trusts" element={<AddTrust />} />
           <Route path="message-bank" element={<MessageBank />} />
-          <Route path="message-trend" element={<MessageTrend />} />
+          <Route
+            path="message-trend"
+            element={<MessageTrend userProfile={loggedInUser} />}
+          />
           <Route
             path="support-actions"
             element={
@@ -533,6 +536,10 @@ export default function App() {
                 userProfile={loggedInUser}
               />
             }
+          />
+          <Route
+            path="message-trend"
+            element={<MessageTrend userProfile={loggedInUser} />}
           />
           <Route path="send-email" element={<SendMail />} />
           <Route path="faqs" element={<FAQ />} />

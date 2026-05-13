@@ -9,7 +9,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { getServiceGraphData } from "../../api/messageTrendService";
+import {
+  getQueueGraphData,
+  getServiceGraphData,
+} from "../../api/messageTrendService";
 import "./Dashboard.css";
 
 const toDateInputValue = (date) => {
@@ -26,10 +29,14 @@ const getDailyDateRange = () => {
   const to = new Date();
   const from = new Date(to);
   from.setDate(from.getDate() - 60);
+  const fromDate = toDateInputValue(from);
+  const toDate = toDateInputValue(to);
 
   return {
-    fromDate: toDateInputValue(from),
-    toDate: toDateInputValue(to),
+    fromDate,
+    toDate,
+    fromDateTime: `${fromDate}T00:00:00`,
+    toDateTime: `${toDate}T23:59:59`,
   };
 };
 
@@ -43,6 +50,7 @@ const getGraphRows = (response) => {
     data?.items ??
     data?.graphData ??
     data?.serviceGraphData ??
+    data?.queueGraphData ??
     data?.metrics ??
     data;
 
@@ -50,6 +58,21 @@ const getGraphRows = (response) => {
 };
 
 const getNumber = (value) => Number(value) || 0;
+
+const getQueueValue = (item) =>
+  getNumber(
+    item?.pendingQueueCount ??
+      item?.pendingCount ??
+      item?.queueCount ??
+      item?.averagePendingQueueCount ??
+      item?.avgPendingQueueCount ??
+      item?.averageQueueCount ??
+      item?.count ??
+      item?.value
+  );
+
+const getGraphLabel = (item) =>
+  item?.label ?? item?.createdOn ?? item?.date ?? item?.timestamp ?? "";
 
 const formatDailyLabel = (label) => {
   if (!label) {
@@ -79,15 +102,20 @@ const Dashboard = () => {
     interfaceName: stateInterfaceName,
     trustId: stateTrustId,
     trustName: stateTrustName,
+    direction: stateDirection,
   } = location.state || {};
   const queueName = stateQueueName || searchParams.get("queueName");
   const aliasName = stateAliasName || searchParams.get("aliasName");
+  const direction = stateDirection || searchParams.get("direction") || "";
+  const isQueueDashboard =
+    String(direction).toUpperCase() === "OUTBOUND" || Boolean(queueName);
   const serviceName =
-    stateServiceName ||
-    searchParams.get("serviceName") ||
-    stateInterfaceName ||
-    searchParams.get("interfaceName") ||
-    "";
+    (isQueueDashboard
+      ? queueName || stateInterfaceName || searchParams.get("interfaceName")
+      : stateServiceName ||
+        searchParams.get("serviceName") ||
+        stateInterfaceName ||
+        searchParams.get("interfaceName")) || "";
   const trustId = stateTrustId || searchParams.get("trustId") || "";
   const trustName = stateTrustName || searchParams.get("trustName") || "";
   const displayName =
@@ -120,35 +148,45 @@ const Dashboard = () => {
       if (!serviceName || !trustId) {
         setTrendData([]);
         setTrendError("");
-        console.warn("[Dashboard] Missing service graph params:", {
-          serviceName,
+        console.warn("[Dashboard] Missing graph params:", {
+          interfaceName: serviceName,
+          interfaceType: isQueueDashboard ? "QUEUE" : "SERVICE",
           trustId,
         });
         return;
       }
 
-      const { fromDate, toDate } = getDailyDateRange();
+      const { fromDateTime, toDateTime } = getDailyDateRange();
       const params = {
-        serviceName,
         trustId,
         groupBy: "DAILY",
-        fromDate,
-        toDate,
+        from: fromDateTime,
+        to: toDateTime,
       };
 
       try {
         setTrendLoading(true);
         setTrendError("");
-        console.log("[Dashboard] Service graph params:", {
-          ...params,
-          trustName,
-          metric: "averageTimeDelay",
-        });
+        const requestParams = isQueueDashboard
+          ? {
+              queueName: serviceName,
+              ...params,
+            }
+          : {
+              serviceName,
+              ...params,
+            };
 
-        const response = await getServiceGraphData(params);
+        console.log("[Dashboard] Graph query params:", requestParams);
+
+        const response = isQueueDashboard
+          ? await getQueueGraphData(requestParams)
+          : await getServiceGraphData(requestParams);
         const rows = getGraphRows(response).map((item) => ({
-          label: formatDailyLabel(item?.label),
-          value: getNumber(item?.averageTimeDelay),
+          label: formatDailyLabel(getGraphLabel(item)),
+          value: isQueueDashboard
+            ? getQueueValue(item)
+            : getNumber(item?.averageTimeDelay),
         }));
 
         setTrendData(rows);
@@ -162,7 +200,7 @@ const Dashboard = () => {
     };
 
     loadDashboardTrend();
-  }, [serviceName, trustId, trustName]);
+  }, [isQueueDashboard, serviceName, trustId, trustName]);
 
   if (!dashboardData) return <p>Loading data...</p>;
 
@@ -193,7 +231,11 @@ const Dashboard = () => {
       {/* Charts */}
       <div className="chart-section">
         <div className="chart-card dashboard-trend-card">
-          <h3>Avg Time Delay Trend</h3>
+          <h3>
+            {isQueueDashboard
+              ? "Pending Queue Count Trend"
+              : "Avg Time Delay Trend"}
+          </h3>
           {trendLoading ? (
             <p className="dashboard-trend-status">Loading trend data...</p>
           ) : trendError ? (
@@ -213,7 +255,11 @@ const Dashboard = () => {
                 <Line
                   type="monotone"
                   dataKey="value"
-                  name="Avg time delay"
+                  name={
+                    isQueueDashboard
+                      ? "Pending queue count"
+                      : "Avg time delay"
+                  }
                   stroke="#2B81BF"
                   strokeWidth={2}
                   dot={{ r: 3 }}

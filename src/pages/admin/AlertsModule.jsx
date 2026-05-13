@@ -33,6 +33,7 @@ const TYPE_FILTER_OPTIONS = {
   NON_CRITICAL: "NON_CRITICAL",
 };
 
+const DEFAULT_ALERT_ENABLED = true;
 const DEFAULT_PAGE_SIZE = 10;
 
 const INBOUND_COLUMNS = [
@@ -147,28 +148,16 @@ const getListFromApiResponse = (response) => {
   return Array.isArray(list) ? list : [];
 };
 
-const getTrustIdFromItem = (item) =>
-  item?.trustId ?? item?.trust_id ?? item?.trust?.id ?? item?.trust?.trustId;
+const getTrustIdFromItem = (item) => item?.trustId;
 
-const getTrustNameFromItem = (item) =>
-  item?.trustName ?? item?.trust_name ?? item?.trust?.name;
+const getTrustNameFromItem = (item) => item?.trustName;
 
 const getInboundReceiverFromApiResponse = (response) => {
   const data = unwrapApiData(response);
-  return data?.data ?? data?.criticalInboundReceiver ?? data;
+  return data?.data ?? data?.criticalInboundReceiver ?? data?.criticalInterface ?? data;
 };
 
-const getUpdatedOnValue = (item) =>
-  item?.updatedOn ??
-  item?.updated_on ??
-  item?.updatedAt ??
-  item?.updated_at ??
-  item?.modifiedOn ??
-  item?.modified_on ??
-  item?.modifiedAt ??
-  item?.modified_at ??
-  item?.lastUpdated ??
-  item?.last_updated;
+const getUpdatedOnValue = (item) => item?.updatedOn;
 
 const formatDateTime = (value) => {
   if (!value) return "-";
@@ -242,13 +231,12 @@ export default function AlertsModule({
   const [exportLoading, setExportLoading] = useState(false);
 
   const isAlertEnabled = (row) =>
-    getBooleanValue(row?.rawItem, ["deleted", "isDeleted"], false);
-  const isCriticalRow = (row) =>
     getBooleanValue(
       row?.rawItem,
-      ["isCritical", "critical", "is_critical"],
-      false
+      ["deleted", "isDeleted"],
+      DEFAULT_ALERT_ENABLED
     );
+  const isCriticalRow = (row) => Boolean(row?.rawItem?.isCritical);
   const selectedTrust = trusts.find(
     (trust) => String(trust.id) === String(selectedTrustId)
   );
@@ -354,17 +342,7 @@ export default function AlertsModule({
           return true;
         }
 
-        const itemTrustId = getTrustIdFromItem(item);
-        if (itemTrustId !== undefined && itemTrustId !== null) {
-          return String(itemTrustId) === String(selectedTrustId);
-        }
-
-        const itemTrustName = getTrustNameFromItem(item);
-        if (itemTrustName && selectedTrustName) {
-          return String(itemTrustName) === String(selectedTrustName);
-        }
-
-        return true;
+        return String(item.trustId) === String(selectedTrustId);
       });
 
       const sortedInboundItems = [...inboundItems].sort((a, b) => {
@@ -409,36 +387,12 @@ export default function AlertsModule({
         return true;
       }
 
-      const itemTrustId = getTrustIdFromItem(item);
-      if (itemTrustId !== undefined && itemTrustId !== null) {
-        return String(itemTrustId) === String(selectedTrustId);
-      }
-
-      const itemTrustName = getTrustNameFromItem(item);
-      if (itemTrustName && selectedTrustName) {
-        return String(itemTrustName) === String(selectedTrustName);
-      }
-
-      return true;
+      return String(item.trustId) === String(selectedTrustId);
     });
 
     const sortedQueueItems = [...queueItems].sort((a, b) => {
-      const firstName = getFirstValue(a, [
-        "endpointName",
-        "interfaceName",
-        "interface_name",
-        "queueName",
-        "serviceName",
-        "name",
-      ]);
-      const secondName = getFirstValue(b, [
-        "endpointName",
-        "interfaceName",
-        "interface_name",
-        "queueName",
-        "serviceName",
-        "name",
-      ]);
+      const firstName = a.endpointName || "";
+      const secondName = b.endpointName || "";
 
       return firstName.localeCompare(secondName, undefined, {
         sensitivity: "base",
@@ -451,22 +405,9 @@ export default function AlertsModule({
       trustId: selectedTrustId,
       rawItem: item,
       serialNo: index + 1,
-      interfaceName: getFirstValue(item, [
-        "endpointName",
-        "interfaceName",
-        "interface_name",
-        "queueName",
-        "serviceName",
-        "name",
-      ]),
-      aliasName: getFirstValue(item, ["aliasName", "alias_name", "alias"]),
-      isCritical: getBooleanValue(item, [
-        "isCritical",
-        "critical",
-        "is_critical",
-      ])
-        ? "Yes"
-        : "No",
+      interfaceName: item.endpointName || "-",
+      aliasName: item.aliasName || "-",
+      isCritical: item.isCritical ? "Yes" : "No",
       updatedOn: formatDateTime(getUpdatedOnValue(item)),
     }));
   }, [

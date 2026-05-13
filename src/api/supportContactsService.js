@@ -2,12 +2,29 @@ import axios from "axios";
 
 const API_BASE = "http://18.170.60.107:8085/api/support-contacts";
 
-export const getSupportContacts = () => {
-  return axios.get(API_BASE);
+const getRequiredTrustParams = (trustId) => {
+  if (trustId === undefined || trustId === null || trustId === "") {
+    throw new Error("trustId is required");
+  }
+
+  return {
+    trustId,
+  };
 };
 
-export const getSupportContactsByDirection = (direction) => {
-  return axios.get(`${API_BASE}?direction=${direction}`);
+export const getSupportContacts = (trustId) => {
+  return axios.get(API_BASE, {
+    params: getRequiredTrustParams(trustId),
+  });
+};
+
+export const getSupportContactsByDirection = (direction, trustId) => {
+  return axios.get(API_BASE, {
+    params: {
+      direction,
+      ...getRequiredTrustParams(trustId),
+    },
+  });
 };
 
 export const getSupportContact = (id) => {
@@ -44,7 +61,7 @@ export const getSupportContactsByTrustInterfaceAndDirection = ({
 }) => {
   return axios.get(`${API_BASE}/search`, {
     params: {
-      trustId,
+      ...getRequiredTrustParams(trustId),
       interfaceName,
       direction,
     },

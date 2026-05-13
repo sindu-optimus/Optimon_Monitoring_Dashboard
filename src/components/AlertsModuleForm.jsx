@@ -11,17 +11,31 @@ const VIEW_OPTIONS = {
   OTHER: "OTHER",
 };
 
+const DEFAULT_ALERT_ENABLED = true;
+
 const getFirstDefinedValue = (item, keys, fallback = "") => {
   for (const key of keys) {
     const value = item?.[key];
 
-    if (value !== undefined && value !== null && String(value).trim() !== "") {
+    if (
+      value !== undefined &&
+      value !== null &&
+      String(value).trim() !== "" &&
+      String(value).trim() !== "-"
+    ) {
       return String(value).trim();
     }
   }
 
   return fallback;
 };
+
+const getInitialValue = (initial, keys, fallback = "") =>
+  getFirstDefinedValue(
+    initial?.rawItem,
+    keys,
+    getFirstDefinedValue(initial, keys, fallback)
+  );
 
 const getBooleanValue = (item, keys, fallback = false) => {
   for (const key of keys) {
@@ -57,13 +71,14 @@ const createInitialForm = (initial, defaultTrustId, defaultView) => ({
         ""
     ) || "",
   interfaceType: initial?.interfaceType || defaultView || VIEW_OPTIONS.INBOUND,
-  serviceName: getFirstDefinedValue(initial?.rawItem, [
+  serviceName: getInitialValue(initial, [
     "serviceName",
+    "inboundName",
     "interfaceName",
     "interface_name",
     "name",
   ]),
-  aliasName: getFirstDefinedValue(initial?.rawItem, [
+  aliasName: getInitialValue(initial, [
     "aliasName",
     "alias_name",
     "alias",
@@ -101,7 +116,11 @@ const createInitialForm = (initial, defaultTrustId, defaultView) => ({
     "critical",
     "is_critical",
   ], true),
-  deleted: getBooleanValue(initial?.rawItem, ["deleted", "isDeleted"], false),
+  deleted: getBooleanValue(
+    initial?.rawItem,
+    ["deleted", "isDeleted"],
+    DEFAULT_ALERT_ENABLED
+  ),
   interfaceName: getFirstDefinedValue(initial?.rawItem, [
     "endpointName",
     "queueName",
@@ -347,6 +366,11 @@ export default function AlertsModuleForm({
     if (!validate()) return;
 
     const trustId = Number(form.trustId);
+    const {
+      interfaceName: _interfaceName,
+      interface_name: _interfaceNameSnake,
+      ...otherRawItem
+    } = initial?.rawItem || {};
     const payload = isInbound
       ? {
           ...(initial?.rawItem || {}),
@@ -363,9 +387,8 @@ export default function AlertsModuleForm({
           deleted: Boolean(form.deleted),
         }
       : {
-          ...(initial?.rawItem || {}),
+          ...otherRawItem,
           endpointName: form.interfaceName.trim(),
-          interfaceName: form.interfaceName.trim(),
           aliasName: form.aliasName.trim(),
           isCritical: Boolean(form.isCritical),
           deleted: Boolean(form.deleted),
