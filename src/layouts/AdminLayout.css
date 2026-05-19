@@ -5,7 +5,6 @@
 }
 
 .admin-bg-video {
-  display: none;
   position: absolute;
   inset: 0;
   width: 100%;
@@ -17,10 +16,10 @@
 }
 
 .admin-video-overlay {
-  display: none;
   position: absolute;
   inset: 0;
   background: rgb(175 196 209 / 85%);
+  /* background: rgb(165 218 251 / 85%); */
   z-index: 1;
   pointer-events: none;
 }

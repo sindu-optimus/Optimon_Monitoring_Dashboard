@@ -30,7 +30,7 @@ import SupportComms from "./pages/admin/SupportComms";
 import MessageBank from "./pages/shared/MessageBank";
 import SendMail from "./pages/shared/SendMail";
 import FAQ from "./pages/shared/FAQ";
-import MessageTrend from "./pages/shared/MessageTrend";
+import InterfaceStats from "./pages/shared/InterfaceStats";
 import { getTrustMeta } from "./utils/trustData";
 import { filterTrustsByAccess } from "./utils/trustAccess";
 import { getMetricDetails } from "./api/metricsService";
@@ -430,8 +430,8 @@ export default function App() {
           <Route path="trusts" element={<AddTrust />} />
           <Route path="message-bank" element={<MessageBank />} />
           <Route
-            path="message-trend"
-            element={<MessageTrend userProfile={loggedInUser} />}
+            path="interface-stats"
+            element={<InterfaceStats userProfile={loggedInUser} />}
           />
           <Route
             path="support-actions"
@@ -538,8 +538,8 @@ export default function App() {
             }
           />
           <Route
-            path="message-trend"
-            element={<MessageTrend userProfile={loggedInUser} />}
+            path="interface-stats"
+            element={<InterfaceStats userProfile={loggedInUser} />}
           />
           <Route path="send-email" element={<SendMail />} />
           <Route path="faqs" element={<FAQ />} />

@@ -12,8 +12,10 @@ import {
 import {
   getQueueGraphData,
   getServiceGraphData,
-} from "../../api/messageTrendService";
+} from "../../api/interfaceStatsService";
 import "./Dashboard.css";
+
+const HEALTH_THRESHOLD = 100;
 
 const toDateInputValue = (date) => {
   const pad = (part) => String(part).padStart(2, "0");
@@ -71,6 +73,30 @@ const getQueueValue = (item) =>
       item?.value
   );
 
+const getServiceValue = (item) =>
+  getNumber(
+    item?.averageTimeDelay ??
+      item?.avgTimeDelay ??
+      item?.timeDelay ??
+      item?.idleTime ??
+      item?.averageIdleTime ??
+      item?.avgIdleTime ??
+      item?.delay ??
+      item?.value
+  );
+
+const getHealthStatus = (rows) =>
+  rows.some((item) => getNumber(item?.value) > HEALTH_THRESHOLD)
+    ? "Critical"
+    : "Healthy";
+
+const MOCK_DASHBOARD_DATA = {
+  lastEmail: {
+    sent: true,
+    time: "Dec 23, 2025 10:42 AM",
+  },
+};
+
 const getGraphLabel = (item) =>
   item?.label ?? item?.createdOn ?? item?.date ?? item?.timestamp ?? "";
 
@@ -125,19 +151,10 @@ const Dashboard = () => {
   const [trendLoading, setTrendLoading] = useState(false);
   const [trendError, setTrendError] = useState("");
 
-  const mockDashboardData = {
-    status: "Healthy",
-
-    lastEmail: {
-      sent: true,
-      time: "Dec 23, 2025 10:42 AM",
-    },
-  };
-
   useEffect(() => {
     // simulate API delay
     const timer = setTimeout(() => {
-      setDashboardData(mockDashboardData);
+      setDashboardData(MOCK_DASHBOARD_DATA);
     }, 500);
 
     return () => clearTimeout(timer);
@@ -186,14 +203,14 @@ const Dashboard = () => {
           label: formatDailyLabel(getGraphLabel(item)),
           value: isQueueDashboard
             ? getQueueValue(item)
-            : getNumber(item?.averageTimeDelay),
+            : getServiceValue(item),
         }));
 
         setTrendData(rows);
       } catch (error) {
         console.error("Error loading dashboard trend:", error);
         setTrendData([]);
-        setTrendError("Unable to load message trend data.");
+        setTrendError("Unable to load interface stats.");
       } finally {
         setTrendLoading(false);
       }
@@ -204,10 +221,8 @@ const Dashboard = () => {
 
   if (!dashboardData) return <p>Loading data...</p>;
 
-  const {
-    lastEmail,
-    status,
-  } = dashboardData;
+  const { lastEmail } = dashboardData;
+  const status = getHealthStatus(trendData);
 
   return (
     <div className="content">
@@ -233,8 +248,8 @@ const Dashboard = () => {
         <div className="chart-card dashboard-trend-card">
           <h3>
             {isQueueDashboard
-              ? "Pending Queue Count Trend"
-              : "Avg Time Delay Trend"}
+              ? "Pending Queue Count Stats"
+              : "Avg Time Delay Stats"}
           </h3>
           {trendLoading ? (
             <p className="dashboard-trend-status">Loading trend data...</p>
@@ -278,5 +293,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
-

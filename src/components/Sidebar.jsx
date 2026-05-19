@@ -15,7 +15,7 @@ export default function Sidebar() {
   const menuItems = [
     { name: "Dashboard", path: "dashboard", icon: "ri-dashboard-line", activeIcon: "ri-dashboard-fill" },
     { name: "Message Bank", path: "message-bank", icon: "ri-search-line", activeIcon: "ri-search-fill" },
-    { name: "Message Trend", path: "message-trend", icon: "ri-file-chart-line", activeIcon: "ri-file-chart-fill" },
+    { name: "Interface Stats", path: "interface-stats", icon: "ri-file-chart-line", activeIcon: "ri-file-chart-fill" },
     { name: "FAQs", path: "faqs", icon: "ri-question-line", activeIcon: "ri-question-fill" },
   ];
 

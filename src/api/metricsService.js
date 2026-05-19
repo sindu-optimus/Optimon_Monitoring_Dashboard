@@ -1,5 +1,5 @@
-// const METRICS_API_BASE = "http://18.168.87.76:8084";
-const METRICS_API_BASE = "http://18.170.60.107:8085";
+const METRICS_API_BASE = "http://18.168.87.76:8084";
+// const METRICS_API_BASE = "http://18.170.60.107:8085";
 
 const sendMetricMutation = async (endpoint, options = {}) => {
   const response = await fetch(`${METRICS_API_BASE}${endpoint}`, {

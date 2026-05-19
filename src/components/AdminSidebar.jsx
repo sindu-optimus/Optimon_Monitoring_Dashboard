@@ -15,7 +15,7 @@ export default function AdminSidebar({ isAdminUser = false }) {
   const menuItems = [
     { name: "Support Actions", path: "/admin/support-actions", icon: "ri-history-line", activeIcon: "ri-history-fill" },
     { name: "Alerts Module", path: "/admin/critical-interfaces", icon: "ri-alert-line", activeIcon: "ri-alert-fill" },
-    { name: "Message Trend", path: "/admin/message-trend", icon: "ri-file-chart-line", activeIcon: "ri-file-chart-fill" },
+    { name: "Interface Stats", path: "/admin/interface-stats", icon: "ri-file-chart-line", activeIcon: "ri-file-chart-fill" },
     { name: "Trusts List", path: "/admin/add-trusts", icon: "ri-shield-check-line", activeIcon: "ri-shield-check-fill" },
     { name: "Send Mail", path: "/admin/send-email", icon: "ri-send-plane-line", activeIcon: "ri-send-plane-fill" },
     { name: "FAQs", path: "/admin/faqs", icon: "ri-question-line", activeIcon: "ri-question-fill" },

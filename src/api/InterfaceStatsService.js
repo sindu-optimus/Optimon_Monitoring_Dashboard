@@ -1,4 +1,4 @@
-const MESSAGE_TREND_API_BASE = "http://18.170.60.107:8085";
+const INTERFACE_STATS_API_BASE = "http://18.170.60.107:8085";
 export const SERVICE_TREND_METRIC = "maxTimeDelay";
 export const QUEUE_TREND_METRIC = "maxPendingQueueCount";
 
@@ -36,7 +36,7 @@ export const getServiceGraphData = async ({
   });
 
   const response = await fetch(
-    `${MESSAGE_TREND_API_BASE}/api/inbound-metrics/service-graph?${searchParams.toString()}`
+    `${INTERFACE_STATS_API_BASE}/api/inbound-metrics/service-graph?${searchParams.toString()}`
   );
 
   if (!response.ok) {
@@ -64,7 +64,7 @@ export const getQueueGraphData = async ({
   });
 
   const response = await fetch(
-    `${MESSAGE_TREND_API_BASE}/api/queue-metrics/queue-graph?${searchParams.toString()}`
+    `${INTERFACE_STATS_API_BASE}/api/queue-metrics/queue-graph?${searchParams.toString()}`
   );
 
   if (!response.ok) {
