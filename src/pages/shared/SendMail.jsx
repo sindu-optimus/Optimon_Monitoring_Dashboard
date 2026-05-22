@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import axiosInstance from "../../api/axiosInstance";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBold,
@@ -842,13 +843,15 @@ const SendMail = () => {
       body,
     };
 
-    const res = await fetch("https://neevapi.ddns.net/api/nim/sendemail/v1", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const res = await axiosInstance.post(
+      "https://neevapi.ddns.net/api/nim/sendemail/v1",
+      payload,
+      {
+        headers: { "Content-Type": "application/json" },
+      }
+    );
 
-    if (!res.ok) {
+    if (res.status < 200 || res.status >= 300) {
       throw new Error("Failed to send email");
     }
   };

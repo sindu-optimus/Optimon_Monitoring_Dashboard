@@ -137,7 +137,13 @@ const Login = ({ onLogin }) => {
         password: loginData.password,
       });
 
-      console.log("Login Success:", res.data);
+      console.group("[Login] Success");
+      console.log("Submitted login details:", {
+        username: loginData.username,
+        password: loginData.password ? "********" : "",
+      });
+      console.log("Logged-in user data:", res.data);
+      console.groupEnd();
 
       onLogin(res.data, loginData.password);
 

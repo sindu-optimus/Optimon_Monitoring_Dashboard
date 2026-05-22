@@ -1,6 +1,6 @@
-import axios from "axios";
+import axiosInstance from "./axiosInstance";
 
-const API_BASE = "http://18.170.60.107:8085/api/support-issues";
+const API_BASE = "/support-issues";
 const DEFAULT_LOOKBACK_DAYS = 7;
 
 const getStartOfLookbackWindow = () => {
@@ -33,7 +33,7 @@ const getDefaultDateParams = () => ({
 
 // GET all support issues
 export const getSupportIssues = (params = {}) => {
-  return axios.get(`${API_BASE}/getall`, {
+  return axiosInstance.get(`${API_BASE}/getall`, {
     params: {
       ...getDefaultDateParams(),
       ...params,
@@ -43,22 +43,22 @@ export const getSupportIssues = (params = {}) => {
 
 // GET support issue by ID
 export const getSupportIssue = (id) => {
-  return axios.get(`${API_BASE}/${id}`);
+  return axiosInstance.get(`${API_BASE}/${id}`);
 };
 
 // CREATE support issue
 export const createSupportIssue = (data) => {
-  return axios.post(`${API_BASE}/create`, data);
+  return axiosInstance.post(`${API_BASE}/create`, data);
 };
 
 // UPDATE support issue
 export const updateSupportIssue = (id, data) => {
-  return axios.put(`${API_BASE}/${id}`, data);
+  return axiosInstance.put(`${API_BASE}/${id}`, data);
 };
 
 // DELETE support issue
 export const deleteSupportIssue = (id, data) => {
-  return axios.delete(`${API_BASE}/${id}`, {
+  return axiosInstance.delete(`${API_BASE}/${id}`, {
     data,
   });
 };

@@ -340,6 +340,14 @@ export default function App() {
   const handleLogin = (userData, password = "") => {
     const uname = userData?.username || userData?.email || "";
 
+    console.group("[App] Login session");
+    console.log("Login details:", {
+      username: uname,
+      password: password ? "********" : "",
+    });
+    console.log("Logged-in user data:", userData || null);
+    console.groupEnd();
+
     setIsLoggedIn(true);
     setUsername(uname);
     setLoggedInUser(userData || null);
@@ -347,6 +355,11 @@ export default function App() {
     localStorage.setItem("isLoggedIn", "true");
     localStorage.setItem("username", uname);
     localStorage.setItem("loggedInUser", JSON.stringify(userData || null));
+    if (userData?.token) {
+      localStorage.setItem("token", userData.token);
+    } else {
+      localStorage.removeItem("token");
+    }
     sessionStorage.setItem("sessionPassword", password);
     navigate("/action");
   };
@@ -366,6 +379,7 @@ export default function App() {
     setTrustIds([]);
     setTrustList([]);
     setTrustListLoaded(false);
+    localStorage.removeItem("token");
     sessionStorage.removeItem("sessionPassword");
     navigate("/login");
   };
