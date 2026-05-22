@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
   CartesianGrid,
+  LabelList,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -9,10 +10,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  getCriticalInboundReceivers,
-  getCriticalInterfaces,
-} from "../../api/criticalInterfacesService";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 import {
   QUEUE_TREND_METRIC,
   SERVICE_TREND_METRIC,
@@ -20,8 +19,13 @@ import {
   getServiceGraphData,
   toApiDateTime,
 } from "../../api/InterfaceStatsService";
+import {
+  getCriticalInboundReceivers,
+  getCriticalInterfaces,
+} from "../../api/criticalInterfacesService";
 import { getTrusts } from "../../api/trustService";
 import { filterTrustsByAccess } from "../../utils/trustAccess";
+import optimonLogo from "../../assets/optimon_logo.png";
 import "./InterfaceStats.css";
 
 const INTERFACE_TYPES = {
@@ -641,166 +645,36 @@ const formatChartTooltipLabel = (label, groupBy) => {
   });
 };
 
-const sanitizePdfText = (value) =>
-  String(value ?? "")
-    .replace(/[^\x20-\x7E]/g, "?")
-    .replace(/\\/g, "\\\\")
-    .replace(/\(/g, "\\(")
-    .replace(/\)/g, "\\)");
-
-const makePdfText = (text, x, y, size = 10) =>
-  `BT /F1 ${size} Tf ${x} ${y} Td (${sanitizePdfText(text)}) Tj ET`;
-
-const formatPdfAxisNumber = (value) =>
+const formatPdfNumber = (value) =>
   Number(value).toLocaleString(undefined, {
     maximumFractionDigits: 2,
   });
 
-const getChartTickIndexes = (length, maxTicks = 8) => {
-  if (length <= 0) {
-    return [];
-  }
-
-  if (length <= maxTicks) {
-    return Array.from({ length }, (_, index) => index);
-  }
-
-  const step = (length - 1) / (maxTicks - 1);
-  const indexes = new Set(
-    Array.from({ length: maxTicks }, (_, index) => Math.round(index * step))
+const getHighestChartPoint = (chartData) =>
+  chartData.reduce(
+    (maxPoint, item) =>
+      Number(item.value || 0) > Number(maxPoint?.value || 0)
+        ? item
+        : maxPoint,
+    chartData[0] || null
   );
 
-  indexes.add(0);
-  indexes.add(length - 1);
-
-  return Array.from(indexes).sort((a, b) => a - b);
-};
-
-const buildInterfaceStatsPdf = ({
-  chartData,
-  chartTitle,
-  interfaceTypeLabel,
-  interfaceLabel,
-  trustLabel,
-  fromDateTime,
-  toDateTime,
-}) => {
-  const pageWidth = 792;
-  const pageHeight = 612;
-  const chartLeft = 88;
-  const chartBottom = 122;
-  const chartWidth = 620;
-  const chartHeight = 280;
-  const chartTop = chartBottom + chartHeight;
-  const yAxisLabel = chartTitle.split("(")[0].trim();
-  const xAxisLabel = "Date / Time";
-  const values = chartData.map((item) => Number(item.value) || 0);
-  const maxValue = Math.max(...values, 1);
-  const minValue = Math.min(...values, 0);
-  const valuePadding = maxValue === minValue ? 1 : (maxValue - minValue) * 0.08;
-  const yMin = Math.max(0, minValue - valuePadding);
-  const yMax = maxValue + valuePadding;
-  const valueRange = yMax - yMin || 1;
-  const points = chartData.map((item, index) => {
-    const x =
-      chartLeft +
-      (chartData.length === 1 ? chartWidth / 2 : (index / (chartData.length - 1)) * chartWidth);
-    const y = chartBottom + ((Number(item.value) || 0) - yMin) / valueRange * chartHeight;
-
-    return { x, y, label: item.label, value: Number(item.value) || 0 };
-  });
-  const commands = [
-    "1 1 1 rg 0 0 792 612 re f",
-    "0.07 0.09 0.13 rg",
-    makePdfText("Interface Stats", 54, pageHeight - 46, 20),
-    makePdfText(chartTitle, 54, pageHeight - 72, 14),
-    "0.96 0.98 1 rg 48 432 696 82 re f",
-    "0.82 0.88 0.94 RG 0.8 w 48 432 696 82 re S",
-    "0.07 0.09 0.13 rg",
-    makePdfText(`Trust Name: ${trustLabel || "N/A"}`, 60, 490, 10),
-    makePdfText(`Type: ${interfaceTypeLabel || "N/A"}`, 310, 490, 10),
-    makePdfText(`Interface Name: ${interfaceLabel || "N/A"}`, 60, 470, 10),
-    makePdfText(`From: ${formatDateTimeDisplay(fromDateTime) || "N/A"}`, 60, 450, 9),
-    makePdfText(`To: ${formatDateTimeDisplay(toDateTime) || "N/A"}`, 310, 450, 9),
-    makePdfText(`X-Axis: ${xAxisLabel}`, 520, 470, 9),
-    makePdfText(`Y-Axis: ${yAxisLabel}`, 520, 450, 9),
-    makePdfText(yAxisLabel, 34, chartTop + 10, 9),
-    makePdfText(xAxisLabel, chartLeft + chartWidth / 2 - 28, 82, 9),
-    "0.86 0.89 0.93 RG 0.8 w",
-  ];
-
-  for (let index = 0; index <= 4; index += 1) {
-    const y = chartBottom + (index / 4) * chartHeight;
-    const value = yMin + (index / 4) * valueRange;
-
-    commands.push(`${chartLeft} ${y.toFixed(2)} m ${chartLeft + chartWidth} ${y.toFixed(2)} l S`);
-    commands.push(`${chartLeft - 4} ${y.toFixed(2)} m ${chartLeft} ${y.toFixed(2)} l S`);
-    commands.push("0.07 0.09 0.13 rg");
-    commands.push(makePdfText(formatPdfAxisNumber(value), 34, y - 3, 8));
-    commands.push("0.86 0.89 0.93 RG");
+function PdfPointLabel({ x, y, value, metricLabel }) {
+  if (x === undefined || y === undefined || value === undefined) {
+    return null;
   }
 
-  commands.push("0.25 0.29 0.35 RG 1 w");
-  commands.push(`${chartLeft} ${chartBottom} m ${chartLeft} ${chartBottom + chartHeight} l S`);
-  commands.push(`${chartLeft} ${chartBottom} m ${chartLeft + chartWidth} ${chartBottom} l S`);
-
-  if (points.length) {
-    commands.push("0.17 0.51 0.75 RG 2 w");
-    commands.push(
-      `${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)} m ${points
-        .slice(1)
-        .map((point) => `${point.x.toFixed(2)} ${point.y.toFixed(2)} l`)
-        .join(" ")} S`
-    );
-    commands.push("0.17 0.51 0.75 rg");
-    points.forEach((point) => {
-      commands.push(`${(point.x - 2.2).toFixed(2)} ${(point.y - 2.2).toFixed(2)} 4.4 4.4 re f`);
-    });
-  }
-
-  getChartTickIndexes(chartData.length).forEach((index) => {
-    const point = points[index];
-    const label = String(point?.label || "").slice(0, 18);
-
-    if (!point) {
-      return;
-    }
-
-    commands.push(
-      `${point.x.toFixed(2)} ${chartBottom} m ${point.x.toFixed(2)} ${chartBottom - 4} l S`
-    );
-    commands.push("0.07 0.09 0.13 rg");
-    commands.push(makePdfText(label, Math.max(36, point.x - 24), chartBottom - 22, 7));
-  });
-
-  commands.push("0.07 0.09 0.13 rg");
-  commands.push(makePdfText("Generated from Optimon Monitoring Dashboard", 54, 48, 8));
-
-  const stream = commands.join("\n");
-  const objects = [
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>`,
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
-  ];
-  let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-
-  objects.forEach((object, index) => {
-    offsets.push(pdf.length);
-    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
-  });
-
-  const xrefOffset = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  offsets.slice(1).forEach((offset) => {
-    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
-  });
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-
-  return new Blob([pdf], { type: "application/pdf" });
-};
+  return (
+    <text
+      x={x}
+      y={y - 8}
+      className="interface-stats-pdf-point-label"
+      textAnchor="middle"
+    >
+      {`${metricLabel}: ${formatPdfNumber(value)}`}
+    </text>
+  );
+}
 
 const downloadBlob = (blob, fileName) => {
   const url = URL.createObjectURL(blob);
@@ -821,8 +695,102 @@ const makeSafeFileNamePart = (value) =>
     .replace(/^-+|-+$/g, "")
     .toLowerCase() || "interface-stats";
 
+function PdfExportReport({
+  chartData,
+  chartTitle,
+  fullMetricLabel,
+  fromDateTime,
+  interfaceLabel,
+  interfaceTypeLabel,
+  metricLabel,
+  toDateTime,
+  trustLabel,
+}) {
+  const highestPoint = getHighestChartPoint(chartData);
+
+  return (
+    <div className="interface-stats-pdf-report">
+      <header className="interface-stats-pdf-header">
+        <div>
+          <h1>Interface Stats</h1>
+          <p>{chartTitle}</p>
+        </div>
+        <img src={optimonLogo} alt="Optimon" />
+      </header>
+
+      <section className="interface-stats-pdf-meta">
+        <div>
+          <span>Trust Name</span>
+          <strong>{trustLabel || "N/A"}</strong>
+        </div>
+        <div>
+          <span>Type</span>
+          <strong>{interfaceTypeLabel || "N/A"}</strong>
+        </div>
+        <div>
+          <span>Interface Name</span>
+          <strong>{interfaceLabel || "N/A"}</strong>
+        </div>
+        <div>
+          <span>From</span>
+          <strong>{formatDateTimeDisplay(fromDateTime) || "N/A"}</strong>
+        </div>
+        <div>
+          <span>To</span>
+          <strong>{formatDateTimeDisplay(toDateTime) || "N/A"}</strong>
+        </div>
+      </section>
+
+      {highestPoint && (
+        <section className="interface-stats-pdf-highlight">
+          <span>Highest {fullMetricLabel}</span>
+          <strong>{formatPdfNumber(highestPoint.value)}</strong>
+          {highestPoint.tooltipLabel && <em>{highestPoint.tooltipLabel}</em>}
+        </section>
+      )}
+
+      <section className="interface-stats-pdf-chart">
+        <ResponsiveContainer width="100%" height={330}>
+          <LineChart data={chartData} margin={{ top: 34, right: 26, bottom: 36, left: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis
+              dataKey="label"
+              interval={0}
+              angle={-28}
+              textAnchor="end"
+              height={66}
+              tick={{ fontSize: 10 }}
+            />
+            <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+            <Tooltip />
+            <Line
+              type="monotone"
+              dataKey="value"
+              name={fullMetricLabel}
+              stroke="#2B81BF"
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              isAnimationActive={false}
+            >
+              <LabelList
+                dataKey="value"
+                content={(props) => (
+                  <PdfPointLabel {...props} metricLabel={metricLabel} />
+                )}
+              />
+            </Line>
+          </LineChart>
+        </ResponsiveContainer>
+      </section>
+
+      <footer>Generated from Optimon Monitoring Dashboard</footer>
+    </div>
+  );
+}
+
 export default function InterfaceStats({ userProfile = null }) {
   const location = useLocation();
+  const pdfReportRef = useRef(null);
   const searchParams = useMemo(
     () => new URLSearchParams(location.search),
     [location.search]
@@ -1214,24 +1182,52 @@ export default function InterfaceStats({ userProfile = null }) {
   const chartTitle = isOutboundSelected
     ? `Pending Count (${formatGroupLabel(activeGroupBy)})`
     : `Time Delay (${formatGroupLabel(activeGroupBy)})`;
+  const metricLabel = isOutboundSelected ? "Count" : "Idle";
+  const fullMetricLabel = isOutboundSelected ? "Pending count" : "Idle time";
   const shouldShowEveryTimeTick = isTimeBasedGroup(activeGroupBy);
-  const handleDownloadPdf = () => {
-    if (!chartData.length) {
+  const handleDownloadPdf = async () => {
+    const reportElement = pdfReportRef.current;
+
+    if (!chartData.length || !reportElement) {
       return;
     }
 
-    const pdfBlob = buildInterfaceStatsPdf({
-      chartData,
-      chartTitle,
-      interfaceTypeLabel: getInterfaceTypeLabel(interfaceType),
-      interfaceLabel: serviceName,
-      trustLabel: trustName,
-      fromDateTime,
-      toDateTime,
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    const canvas = await html2canvas(reportElement, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      useCORS: true,
     });
+    const doc = new jsPDF({
+      orientation: "landscape",
+      unit: "pt",
+      format: "letter",
+    });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const pagePadding = 24;
+    const maxImageWidth = pageWidth - pagePadding * 2;
+    const maxImageHeight = pageHeight - pagePadding * 2;
+    const widthRatio = maxImageWidth / canvas.width;
+    const heightRatio = maxImageHeight / canvas.height;
+    const ratio = Math.min(widthRatio, heightRatio);
+    const imageWidth = canvas.width * ratio;
+    const imageHeight = canvas.height * ratio;
+    const imageX = (pageWidth - imageWidth) / 2;
+    const imageY = (pageHeight - imageHeight) / 2;
+
+    doc.addImage(
+      canvas.toDataURL("image/png"),
+      "PNG",
+      imageX,
+      imageY,
+      imageWidth,
+      imageHeight
+    );
 
     downloadBlob(
-      pdfBlob,
+      doc.output("blob"),
       `${makeSafeFileNamePart(serviceName)}-${makeSafeFileNamePart(chartTitle)}.pdf`
     );
   };
@@ -1409,6 +1405,24 @@ export default function InterfaceStats({ userProfile = null }) {
           <p className="interface-stats-status">No stats data available.</p>
         )}
       </div>
+
+      {chartData.length > 0 && (
+        <div className="interface-stats-pdf-export-shell" aria-hidden="true">
+          <div ref={pdfReportRef}>
+            <PdfExportReport
+              chartData={chartData}
+              chartTitle={chartTitle}
+              fullMetricLabel={fullMetricLabel}
+              fromDateTime={fromDateTime}
+              interfaceLabel={serviceName}
+              interfaceTypeLabel={getInterfaceTypeLabel(interfaceType)}
+              metricLabel={metricLabel}
+              toDateTime={toDateTime}
+              trustLabel={trustName}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

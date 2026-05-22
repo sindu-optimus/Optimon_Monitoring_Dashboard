@@ -13,6 +13,15 @@
   flex-wrap: wrap;
 }
 
+.emails-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex: 1 1 320px;
+  margin-left: auto;
+}
+
 .emails-filter-label {
   display: flex;
   flex-direction: column;
@@ -117,5 +126,11 @@
   .emails-filter-label {
     width: 100%;
     min-width: 0;
+  }
+
+  .emails-toolbar-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
   }
 }

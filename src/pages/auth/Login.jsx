@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import LoginNavbar from "../../components/LoginNavbar";
 import monitoringVector from "../../assets/monitoring_vector.png";
 import bgVideo from "../../assets/servers-bg.mp4";
-import { loginUser } from "../../api/loginService";
+import { forgotPassword, loginUser } from "../../api/loginService";
 import "./Login.css";
 
 const Login = ({ onLogin }) => {
@@ -10,56 +10,132 @@ const Login = ({ onLogin }) => {
     username: "",
     password: "",
   });
+  const [forgotData, setForgotData] = useState({
+    username: "",
+    password: "",
+    confirmPassword: "",
+  });
 
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [apiMessage, setApiMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   /* ---------- VALIDATION ---------- */
   const validate = (trigger) => {
     const err = {};
+    const formData = isForgotPassword ? forgotData : loginData;
 
-    if (trigger === "password" && !loginData.username.trim()) {
+    if (trigger === "password" && !formData.username.trim()) {
       err.username = "Username is required";
       err.password = "Password is required";
       return setErrors(err);
     }
 
     if (trigger === "submit") {
-      if (!loginData.username.trim()) {
+      if (!formData.username.trim()) {
         err.username = "Username is required";
       }
-      if (!loginData.password) {
+      if (!formData.password) {
         err.password = "Password is required";
-      } else if (loginData.password.length < 6) {
+      } else if (formData.password.length < 6) {
         err.password = "Minimum 6 characters required";
+      }
+
+      if (isForgotPassword) {
+        if (!forgotData.confirmPassword) {
+          err.confirmPassword = "Confirm password is required";
+        } else if (forgotData.confirmPassword !== forgotData.password) {
+          err.confirmPassword = "Passwords do not match";
+        }
       }
     }
 
     setErrors(err);
+    return err;
   };
 
   /* ---------- FORM VALID ---------- */
-  const isFormValid =
-    loginData.username.trim() &&
-    loginData.password.length >= 6;
+  const isLoginFormValid =
+    loginData.username.trim() && loginData.password.length >= 6;
+  const isForgotFormValid =
+    forgotData.username.trim() &&
+    forgotData.password.length >= 6 &&
+    forgotData.confirmPassword === forgotData.password;
+  const isFormValid = isForgotPassword
+    ? isForgotFormValid
+    : isLoginFormValid;
+
+  const updateField = (field, value) => {
+    if (isForgotPassword) {
+      setForgotData((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
+    } else {
+      setLoginData((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
+    }
+
+    if (apiError) {
+      setApiError("");
+    }
+    if (apiMessage) {
+      setApiMessage("");
+    }
+    if (errors[field]) {
+      setErrors((prev) => ({
+        ...prev,
+        [field]: null,
+      }));
+    }
+  };
+
+  const toggleForgotPassword = () => {
+    setIsForgotPassword((prev) => !prev);
+    setErrors({});
+    setApiError("");
+    setApiMessage("");
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+  };
 
   /* ---------- SUBMIT ---------- */
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    validate("submit");
-    if (!isFormValid) return;
+    const validationErrors = validate("submit");
+    if (Object.keys(validationErrors).length || !isFormValid) return;
 
     try {
       setLoading(true);
       setApiError(""); // clear old error
+      setApiMessage("");
 
-      const res = await loginUser(
-        loginData.username,
-        loginData.password
-      );
+      if (isForgotPassword) {
+        await forgotPassword({
+          username: forgotData.username,
+          password: forgotData.password,
+        });
+
+        setApiMessage("Password updated successfully");
+        setForgotData({
+          username: "",
+          password: "",
+          confirmPassword: "",
+        });
+        return;
+      }
+
+      const res = await loginUser({
+        username: loginData.username,
+        password: loginData.password,
+      });
 
       console.log("Login Success:", res.data);
 
@@ -68,7 +144,10 @@ const Login = ({ onLogin }) => {
     } catch (error) {
       console.error("Login Error:", error);
       setApiError(
-        error.response?.data?.message || "Invalid credentials"
+        error.response?.data?.message ||
+          (isForgotPassword
+            ? "Unable to update password"
+            : "Invalid credentials")
       );
     } finally {
       setLoading(false);
@@ -104,22 +183,12 @@ const Login = ({ onLogin }) => {
                 }`}
                 type="text"
                 placeholder="Username"
-                value={loginData.username}
-                onChange={(e) => {
-                  setLoginData({
-                    ...loginData,
-                    username: e.target.value,
-                  });
-                  if (apiError) {
-                    setApiError("");
-                  }
-                  if (errors.username) {
-                    setErrors((prev) => ({
-                      ...prev,
-                      username: null,
-                    }));
-                  }
-                }}
+                value={
+                  isForgotPassword
+                    ? forgotData.username
+                    : loginData.username
+                }
+                onChange={(e) => updateField("username", e.target.value)}
               />
               {errors.username && (
                 <p className="input-error">{errors.username}</p>
@@ -132,24 +201,16 @@ const Login = ({ onLogin }) => {
                     errors.password ? "input-invalid" : ""
                   }`}
                   type={showPassword ? "text" : "password"}
-                  placeholder="Password"
-                  value={loginData.password}
+                  placeholder={
+                    isForgotPassword ? "New Password" : "Password"
+                  }
+                  value={
+                    isForgotPassword
+                      ? forgotData.password
+                      : loginData.password
+                  }
                   onFocus={() => validate("password")}
-                  onChange={(e) => {
-                    setLoginData({
-                      ...loginData,
-                      password: e.target.value,
-                    });
-                    if (apiError) {
-                      setApiError("");
-                    }
-                    if (errors.password) {
-                      setErrors((prev) => ({
-                        ...prev,
-                        password: null,
-                      }));
-                    }
-                  }}
+                  onChange={(e) => updateField("password", e.target.value)}
                 />
                 <i
                   className={`fa ${
@@ -163,21 +224,62 @@ const Login = ({ onLogin }) => {
                 <p className="input-error">{errors.password}</p>
               )}
 
+              {isForgotPassword && (
+                <>
+                  <div className="login-password">
+                    <input
+                      className={`login-input ${
+                        errors.confirmPassword ? "input-invalid" : ""
+                      }`}
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="Confirm Password"
+                      value={forgotData.confirmPassword}
+                      onChange={(e) =>
+                        updateField("confirmPassword", e.target.value)
+                      }
+                    />
+                    <i
+                      className={`fa ${
+                        showConfirmPassword ? "fa-eye-slash" : "fa-eye"
+                      }`}
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
+                    />
+                  </div>
+
+                  {errors.confirmPassword && (
+                    <p className="input-error">
+                      {errors.confirmPassword}
+                    </p>
+                  )}
+                </>
+              )}
+
               {/* FORGOT PASSWORD */}
               <div className="forgot-password">
-                <span aria-disabled="true">
-                  Forgot password?
-                </span>
+                <button type="button" onClick={toggleForgotPassword}>
+                  {isForgotPassword ? "Back to login" : "Forgot password?"}
+                </button>
               </div>
 
               {apiError && <div className="input-error">{apiError}</div>}
+              {apiMessage && (
+                <div className="form-msg form-success">{apiMessage}</div>
+              )}
 
               {/* BUTTON */}
               <button
                 className="btn"
                 disabled={!isFormValid || loading}
               >
-                {loading ? "Logging in..." : "Login"}
+                {loading
+                  ? isForgotPassword
+                    ? "Updating..."
+                    : "Logging in..."
+                  : isForgotPassword
+                    ? "Update Password"
+                    : "Login"}
               </button>
 
             </form>

@@ -144,8 +144,12 @@ const Dashboard = () => {
         searchParams.get("interfaceName")) || "";
   const trustId = stateTrustId || searchParams.get("trustId") || "";
   const trustName = stateTrustName || searchParams.get("trustName") || "";
+  const interfaceActualName = isQueueDashboard ? queueName : serviceName;
+  const interfaceAliasName = aliasName || interfaceActualName;
   const displayName =
-    aliasName && queueName ? `${aliasName} (${queueName})` : aliasName || id;
+    interfaceAliasName && interfaceActualName
+      ? `${interfaceAliasName} (${interfaceActualName})`
+      : interfaceAliasName || id;
   const [dashboardData, setDashboardData] = useState(null);
   const [trendData, setTrendData] = useState([]);
   const [trendLoading, setTrendLoading] = useState(false);

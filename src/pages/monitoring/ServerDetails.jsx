@@ -31,8 +31,9 @@ export default function ServerDetails() {
     aliasName ||
     id;
   const direction = stateDirection || searchParams.get("direction");
+  const originalName = serviceName || queueName;
   const displayName =
-    aliasName && queueName ? `${aliasName} (${queueName})` : aliasName || id;
+    aliasName && originalName ? `${aliasName} (${originalName})` : aliasName || id;
   const openSendMailForm = () => {
     if (!id) return;
 
