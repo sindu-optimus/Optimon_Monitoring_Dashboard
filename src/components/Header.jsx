@@ -126,13 +126,24 @@ export default function Header({
     closeAllDropdowns();
 
     if (window.location.pathname === "/action") {
-      window.location.reload();
-    } else {
-      navigate("/action");
-      // setTimeout(() => {
-        window.location.reload();
-      // }, 100); 
+      return;
     }
+
+    navigate("/action");
+  };
+
+  const reloadHome = () => {
+    closeAllDropdowns();
+
+    if (window.location.pathname === "/action") {
+      window.location.reload();
+      return;
+    }
+
+    navigate("/action");
+    window.setTimeout(() => {
+      window.location.reload();
+    }, 100);
   };
 
   const goToSupport = () => {
@@ -199,7 +210,7 @@ export default function Header({
         src={optimonLogo}
         alt="Optimon Logo"
         className="optimon-logo"
-        onClick={goHome}
+        onClick={reloadHome}
       />
 
       {/* Mobile Logo */}
@@ -207,7 +218,7 @@ export default function Header({
         src={logo}
         alt="Logo"
         className="logo"
-        onClick={goHome}
+        onClick={reloadHome}
       />
 
       <p className="nav">OPTIMON+</p>

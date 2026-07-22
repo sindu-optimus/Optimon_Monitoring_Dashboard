@@ -23,6 +23,10 @@
   .status-card.healthy {
     border-left: 5px solid green;
   }
+
+  .status-card.critical {
+    border-left: 5px solid red;
+  }
   
   .status-card.degraded {
     border-left: 5px solid orange;

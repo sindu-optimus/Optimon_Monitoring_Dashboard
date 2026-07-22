@@ -1,6 +1,6 @@
-import axios from "axios";
+import axiosInstance from "./axiosInstance";
 
-const API_BASE = "http://18.170.60.107:8085/api/support-contacts";
+const API_BASE = "/support-contacts";
 
 const getRequiredTrustParams = (trustId) => {
   if (trustId === undefined || trustId === null || trustId === "") {
@@ -13,13 +13,13 @@ const getRequiredTrustParams = (trustId) => {
 };
 
 export const getSupportContacts = (trustId) => {
-  return axios.get(API_BASE, {
+  return axiosInstance.get(API_BASE, {
     params: getRequiredTrustParams(trustId),
   });
 };
 
 export const getSupportContactsByDirection = (direction, trustId) => {
-  return axios.get(API_BASE, {
+  return axiosInstance.get(API_BASE, {
     params: {
       direction,
       ...getRequiredTrustParams(trustId),
@@ -28,26 +28,26 @@ export const getSupportContactsByDirection = (direction, trustId) => {
 };
 
 export const getSupportContact = (id) => {
-  return axios.get(`${API_BASE}/${id}`);
+  return axiosInstance.get(`${API_BASE}/${id}`);
 };
 
 export const createSupportContact = (payload) => {
-  return axios.post(API_BASE, payload);
+  return axiosInstance.post(API_BASE, payload);
 };
 
 export const updateSupportContact = (id, payload) => {
-  return axios.put(`${API_BASE}/${id}`, payload);
+  return axiosInstance.put(`${API_BASE}/${id}`, payload);
 };
 
 export const deleteSupportContact = (id) => {
-  return axios.delete(`${API_BASE}/${id}`);
+  return axiosInstance.delete(`${API_BASE}/${id}`);
 };
 
 export const getSupportContactsByInterfaceAndDirection = (
   interfaceId,
   direction
 ) => {
-  return axios.get(
+  return axiosInstance.get(
     `${API_BASE}/interface/${encodeURIComponent(
       interfaceId
     )}/direction/${encodeURIComponent(direction)}`
@@ -59,7 +59,7 @@ export const getSupportContactsByTrustInterfaceAndDirection = ({
   interfaceName,
   direction,
 }) => {
-  return axios.get(`${API_BASE}/search`, {
+  return axiosInstance.get(`${API_BASE}/search`, {
     params: {
       ...getRequiredTrustParams(trustId),
       interfaceName,

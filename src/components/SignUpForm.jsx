@@ -5,6 +5,7 @@ import { filterTrustsByAccess } from "../utils/trustAccess";
 import "./SignUpForm.css";
 
 const USERNAME_REGEX = /^[A-Za-z0-9-]+$/;
+const DEFAULT_PASSWORD = "optimus@123";
 
 const getTrustLabels = (trusts = []) =>
   (Array.isArray(trusts) ? trusts : [])
@@ -48,7 +49,6 @@ export default function SignUpForm({
     email: initial.email ?? "",
     username: initial.username ?? initial.email ?? "",
     phone: String(initial.phone ?? initial.mobile ?? ""),
-    password: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -56,7 +56,6 @@ export default function SignUpForm({
   const [success, setSuccess] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [isTrustDropdownOpen, setIsTrustDropdownOpen] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -139,7 +138,6 @@ export default function SignUpForm({
     "email",
     "phone",
     "username",
-    ...(!initial.id ? ["password"] : []),
   ];
 
   const getUsernameError = (value) => {
@@ -193,14 +191,6 @@ export default function SignUpForm({
         const usernameError = getUsernameError(form.username);
         if (usernameError) {
           err.username = usernameError;
-        }
-      }
-
-      if (field === "password") {
-        if (!initial.id && !form.password.trim()) {
-          err.password = "Password is required";
-        } else if (form.password && form.password.length < 6) {
-          err.password = "Minimum 6 characters required";
         }
       }
 
@@ -279,7 +269,7 @@ export default function SignUpForm({
     setSubmitError("");
     setSuccess("");
 
-    validateUpTo(initial.id ? "phone" : "password");
+    validateUpTo("username");
     if (!isFormValid) return;
 
     const roleId =
@@ -299,8 +289,8 @@ export default function SignUpForm({
       username: form.username.trim(),
     };
 
-    if (!initial.id && form.password && form.password.trim() !== "") {
-      payload.password = form.password.trim();
+    if (!initial.id) {
+      payload.password = DEFAULT_PASSWORD;
     }
 
     try {
@@ -338,8 +328,7 @@ export default function SignUpForm({
     form.trusts.length > 0 &&
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) &&
     /^\d{10}$/.test(form.phone) &&
-    USERNAME_REGEX.test(form.username.trim()) &&
-    (initial.id || form.password.length >= 6);
+    USERNAME_REGEX.test(form.username.trim());
 
   return (
     <div className="content">
@@ -491,29 +480,6 @@ export default function SignUpForm({
           placeholder="Enter username"
         />
         {errors.username && <p className="input-error">{errors.username}</p>}
-
-        {!initial.id && (
-          <>
-            <label className="form-label">Password*</label>
-            <div className="passwordField">
-              <input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                className={`form-input ${errors.password ? "input-invalid" : ""}`}
-                value={form.password}
-                onFocus={() => validateUpTo("username")}
-                onChange={handleChange}
-              />
-              <i
-                className={`fa ${showPassword ? "fa-eye-slash" : "fa-eye"} passwordToggle`}
-                onClick={() => setShowPassword((prev) => !prev)}
-              />
-            </div>
-            {errors.password && (
-              <p className="input-error">{errors.password}</p>
-            )}
-          </>
-        )}
 
         <button
           className="btn"

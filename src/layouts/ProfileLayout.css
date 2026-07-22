@@ -1,10 +1,11 @@
-.admin-page-layout {
+.profile-page-layout {
   position: relative;
   isolation: isolate;
-  background: #eef6fb;
+  display: flex;
+  /* background: #eef6fb; */
 }
 
-.admin-bg-video {
+.profile-bg-video {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -15,21 +16,15 @@
   pointer-events: none;
 }
 
-.admin-video-overlay {
+.profile-video-overlay {
   position: absolute;
   inset: 0;
   background: rgb(175 196 209 / 85%);
-  /* background: rgb(165 218 251 / 85%); */
   z-index: 1;
   pointer-events: none;
 }
 
-.admin-page-layout .sidebar,
-.admin-page-layout .sidebar-toggle-btn {
-  z-index: 3;
-}
-
-.admin-page-content {
+.profile-page-layout .profile-page-content {
   position: relative;
   z-index: 2;
   flex: 1;
@@ -40,31 +35,22 @@
   background: transparent;
 }
 
-.admin-content-layer {
+.profile-content-layer {
   position: relative;
   z-index: 1;
   min-height: 100%;
 }
 
-.admin-page-layout .content {
+.profile-page-layout .content {
   padding: 32px 28px 40px;
 }
 
-.admin-page-layout .main-container,
-.admin-page-layout .settings-page,
-.admin-page-layout .form-root {
-  background: transparent;
-}
-
-.admin-page-layout .settings-page,
-.admin-page-layout .send-mail-page,
-.admin-page-layout .profile-page,
-.admin-page-layout .form-root {
+.profile-page-layout .profile-page {
   padding-top: 32px;
 }
 
 @media (max-width: 767px) {
-  .admin-page-content {
-    padding-right: 0;
+  .profile-page-layout .content {
+    padding: 24px 16px 32px;
   }
 }

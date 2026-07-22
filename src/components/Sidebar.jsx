@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { matchPath, useNavigate, useLocation, useParams } from "react-router-dom";
 import "./Sidebar.css";
 import "remixicon/fonts/remixicon.css";
 
@@ -14,10 +14,21 @@ export default function Sidebar() {
 
   const menuItems = [
     { name: "Dashboard", path: "dashboard", icon: "ri-dashboard-line", activeIcon: "ri-dashboard-fill" },
-    { name: "Message Bank", path: "message-bank", icon: "ri-search-line", activeIcon: "ri-search-fill" },
-    { name: "Message Trend", path: "message-trend", icon: "ri-file-chart-line", activeIcon: "ri-file-chart-fill" },
+    // { name: "Message Bank", path: "message-bank", icon: "ri-search-line", activeIcon: "ri-search-fill" },
+    { name: "Interface Stats", path: "interface-stats", icon: "ri-file-chart-line", activeIcon: "ri-file-chart-fill" },
     { name: "FAQs", path: "faqs", icon: "ri-question-line", activeIcon: "ri-question-fill" },
   ];
+
+  const isMenuItemActive = (itemPath) =>
+    Boolean(
+      matchPath(
+        {
+          path: `/action/:id/${itemPath}`,
+          end: true,
+        },
+        location.pathname
+      )
+    );
 
   const handleNavigate = (subPath) => {
     if (!id) return;
@@ -57,8 +68,7 @@ export default function Sidebar() {
         {/* MENU */}
         <ul>
           {menuItems.map((item) => {
-            const fullPath = `/action/${id}/${item.path}`;
-            const isActive = location.pathname === fullPath;
+            const isActive = isMenuItemActive(item.path);
 
             return (
               <li

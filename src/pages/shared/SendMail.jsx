@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import axiosInstance from "../../api/axiosInstance";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBold,
@@ -99,9 +100,9 @@ Optimus Support`;
 
   return `Dear Team,
 
-We have been observing that, messages are queueing in the ${interfaceName}. We have restarted the listener still the queue is not going down.
+We have been observing that, due to the connectivity lost, the messages are not processing from TIE to ${interfaceName}
 
-Could you check the listener and restart if required please?
+Could you please check the listener and restart if required please?
 
 Thanks,
 Optimus Support`;
@@ -840,15 +841,14 @@ const SendMail = () => {
       cc: finalCc.join(", "),
       subject,
       body,
+      html: true,
     };
 
-    const res = await fetch("https://neevapi.ddns.net/api/nim/sendemail/v1", {
-      method: "POST",
+    const res = await axiosInstance.post("/emails/send", payload, {
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
     });
 
-    if (!res.ok) {
+    if (res.status < 200 || res.status >= 300) {
       throw new Error("Failed to send email");
     }
   };

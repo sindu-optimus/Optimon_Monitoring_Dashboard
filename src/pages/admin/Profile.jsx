@@ -272,10 +272,12 @@ export default function Profile({
 
   if (loading) {
     return (
-      <div className="profile-page">
-        <h2 className="profile-page-title">My Profile</h2>
-        <div className="profile-card">
-          <p>Loading profile...</p>
+      <div className="content">
+        <div className="profile-page">
+          <h2 className="profile-page-title">My Profile</h2>
+          <div className="profile-card">
+            <p>Loading profile...</p>
+          </div>
         </div>
       </div>
     );

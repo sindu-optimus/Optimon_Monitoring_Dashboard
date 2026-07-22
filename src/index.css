@@ -8,3 +8,15 @@ html, body, #root {
   width: 100%;
   overflow-x: hidden;
 }
+
+:root {
+  --field-border-radius: 6px;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea,
+.inputField,
+.critical-search-field {
+  border-radius: var(--field-border-radius) !important;
+}

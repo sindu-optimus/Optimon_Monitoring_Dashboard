@@ -22,7 +22,10 @@ const getItemId = (item) => item?.id ?? item?.supportIssueId ?? null;
 const getItemIssue = (item) => item?.description1 ?? item?.issue ?? "";
 const getItemAction = (item) => item?.description2 ?? item?.action ?? "";
 const getItemInterface = (item) =>
-  item?.interface_name ?? item?.interfaceName ?? "";
+  item?.interface_name ??
+  item?.interfaceName ??
+  item?.interface?.name ??
+  (typeof item?.interface === "string" ? item.interface : "");
 const getItemTrustId = (item) => item?.trust_id ?? item?.trustId ?? "";
 const getItemStatus = (item) => (item?.isDeleted ? "COMPLETE" : "ACTIVE");
 const getItemStatusLabel = (item) =>
@@ -618,7 +621,15 @@ const SupportActions = ({ isAdminUser = false, userProfile = null }) => {
       if (!id) return;
 
       const res = await getSupportIssue(id);
-      setEditingAction(res.data || item);
+      const issueDetails = res.data?.data ?? res.data ?? item;
+
+      // The list response contains the interface name, but the single-issue
+      // response may not. Keep the row value so it is available in the edit form.
+      setEditingAction({
+        ...item,
+        ...issueDetails,
+        interface_name: getItemInterface(issueDetails) || getItemInterface(item),
+      });
       setShowForm(true);
     } catch (fetchError) {
       console.error("Error loading action details:", fetchError);

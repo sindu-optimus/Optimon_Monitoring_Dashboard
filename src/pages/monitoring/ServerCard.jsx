@@ -281,8 +281,9 @@ export default function ServerCard({
 
   const handleEndpointClick = (endpoint) => {
     const serviceName = endpoint.serviceName || endpoint.name;
+    const aliasName = endpoint.aliasName || serviceName;
     const params = new URLSearchParams({
-      aliasName: serviceName,
+      aliasName,
       serviceName,
       interfaceName: serviceName,
       direction: "INBOUND",
@@ -297,10 +298,10 @@ export default function ServerCard({
     }
 
     navigate(
-      `/action/${encodeURIComponent(serviceName)}/dashboard?${params.toString()}`,
+      `/action/${encodeURIComponent(aliasName)}/dashboard?${params.toString()}`,
       {
         state: {
-          aliasName: serviceName,
+          aliasName,
           serviceName,
           interfaceName: serviceName,
           direction: "INBOUND",
@@ -513,7 +514,10 @@ export default function ServerCard({
                         <span
                           className="ellipsis endpoint-tooltip-target"
                           onMouseEnter={(e) =>
-                            showTooltip(e.currentTarget, endpoint.name)
+                            showTooltip(
+                              e.currentTarget,
+                              endpoint.serviceName || endpoint.name
+                            )
                           }
                           onMouseLeave={hideTooltip}
                           onClick={() => handleEndpointClick(endpoint)}

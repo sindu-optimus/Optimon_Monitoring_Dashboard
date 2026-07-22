@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import axios from "axios";
+import axiosInstance from "../../api/axiosInstance";
 import "./MessageBank.css";
 
 const MessageBank = () => {
@@ -19,7 +19,7 @@ const MessageBank = () => {
 
   const fetchMessages = async () => {
     try {
-      const response = await axios.get(
+      const response = await axiosInstance.get(
         "https://neevapi.ddns.net/api/nim/messages/v1",
         {
           params: {

@@ -1,7 +1,9 @@
+import axiosInstance from "./axiosInstance";
+
 const CRITICAL_INTERFACES_API_BASE =
-  "http://18.170.60.107:8085/api/critical-interfaces";
+  "http://18.168.87.76:8085/api/critical-interfaces";
 const CRITICAL_INBOUND_RECEIVERS_API_BASE =
-  "http://18.170.60.107:8085/api/critical-inbound-receivers";
+  "http://18.168.87.76:8085/api/critical-inbound-receivers";
 
 const isInboundInterface = (interfaceType) =>
   String(interfaceType).toUpperCase() === "INBOUND";
@@ -37,19 +39,23 @@ const sendCriticalApiRequest = async ({
   // console.log("[CriticalInterfaces API] Request:", logDetails);
 
   try {
-    const response = await fetch(url, {
+    const response = await axiosInstance({
+      url,
+      method,
       headers: {
         "Content-Type": "application/json",
+        ...options.headers,
       },
-      ...options,
+      data: getRequestBodyForLog(options.body),
+      validateStatus: () => true,
     });
 
-    const contentType = response.headers.get("content-type") || "";
+    const contentType = response.headers?.["content-type"] || "";
     const responseData = contentType.includes("application/json")
-      ? await response.json()
+      ? response.data
       : null;
 
-    if (!response.ok) {
+    if (response.status < 200 || response.status >= 300) {
       const errorMessage =
         responseData?.message || responseData?.error || fallbackErrorMessage;
 

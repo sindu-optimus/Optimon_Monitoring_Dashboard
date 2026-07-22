@@ -1,13 +1,36 @@
-import axios from "axios";
+import axiosInstance from "./axiosInstance";
 
-const API_BASE = "http://18.170.60.107:8085/api";
-
-// LOGIN API (uses query params)
-export const loginUser = (username, password) => {
-  return axios.post(`${API_BASE}/login`, null, {
-    params: {
-      username,
+// LOGIN API
+export const loginUser = ({ username, password }) => {
+  return axiosInstance.post(
+    "/login",
+    {
       password,
+      username,
     },
-  });
+    { skipAuth: true }
+  );
+};
+
+// FORGOT PASSWORD API
+export const forgotPassword = ({ username, password }) => {
+  return axiosInstance.post(
+    "/forgotpassword",
+    {
+      password,
+      username,
+    },
+    { skipAuth: true }
+  );
+};
+
+// REFRESH TOKEN API
+export const refreshAuthToken = (refreshToken) => {
+  return axiosInstance.post(
+    "/refresh-token",
+    {
+      refreshToken,
+    },
+    { skipAuth: true }
+  );
 };

@@ -511,28 +511,6 @@ export default function SupportComms({ userProfile = null }) {
         <h2>Support Email Comms</h2>
       </div>
 
-      <div className="trustForm-actions">
-        <button
-          type="button"
-          className="download-trust-btn"
-          onClick={downloadExcelFile}
-          disabled={allTableRows.length === 0}
-        >
-          <i className="ri-file-excel-2-line" aria-hidden="true"></i>
-          Download Excel
-        </button>
-
-        <button
-          className="add-btn"
-          onClick={() => {
-            setEditingItem(null);
-            setShowForm(true);
-          }}
-        >
-          Add Support Email
-        </button>
-      </div>
-
       <div className="emails-filter-row">
         <label className="emails-filter-label">
           Trust Selection
@@ -561,6 +539,28 @@ export default function SupportComms({ userProfile = null }) {
             <option value={DIRECTION_OPTIONS.INBOUND}>INBOUND</option>
           </select>
         </label>
+
+        <div className="emails-toolbar-actions">
+          <button
+            type="button"
+            className="download-trust-btn"
+            onClick={downloadExcelFile}
+            disabled={allTableRows.length === 0}
+          >
+            <i className="ri-file-excel-2-line" aria-hidden="true"></i>
+            Download Excel
+          </button>
+
+          <button
+            className="add-btn"
+            onClick={() => {
+              setEditingItem(null);
+              setShowForm(true);
+            }}
+          >
+            Add Support Email
+          </button>
+        </div>
       </div>
 
       {error && <p className="error">{error}</p>}

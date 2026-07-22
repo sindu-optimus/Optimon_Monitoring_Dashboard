@@ -149,17 +149,23 @@ export default function Server({
 
   const endpoints = useMemo(() => {
     return inbound
-      .map((ep) => ({
-        id: ep.id,
-        trustId: ep.trustId ?? trustId,
-        name: ep.serviceName ?? "Unknown",
-        serviceName: ep.serviceName ?? "Unknown",
-        idleTime: ep.timeDelay ?? "0",
-        critical: computeEndpointCritical(
-          ep.timeDelay,
-          serviceDelayLimit
-        ),
-      }))
+      .map((ep) => {
+        const serviceName = ep.serviceName ?? "Unknown";
+        const aliasName = ep.aliasName || serviceName;
+
+        return {
+          id: ep.id,
+          trustId: ep.trustId ?? trustId,
+          name: aliasName,
+          serviceName,
+          aliasName,
+          idleTime: ep.timeDelay ?? "0",
+          critical: computeEndpointCritical(
+            ep.timeDelay,
+            serviceDelayLimit
+          ),
+        };
+      })
       .sort(
         (a, b) =>
           b.critical - a.critical ||

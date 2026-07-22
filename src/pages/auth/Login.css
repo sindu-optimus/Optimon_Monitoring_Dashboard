@@ -106,13 +106,21 @@
   text-align: right;
   font-size: 14px;
   /* margin: 10px 0 20px; */
-  color: #94a3b8;
   text-decoration: none;
 }
 
-.forgot-password span {
-  cursor: not-allowed;
-  opacity: 0.7;
+.forgot-password button {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.forgot-password button:hover {
+  color: #1d4ed8;
 }
 
 .login-btn {
@@ -142,6 +150,61 @@
   background: #ffe6e6;
   color: #d9534f;
   border: 1px solid #f4b4b4;
+}
+
+.form-success {
+  background: #e8f7ee;
+  color: #217a42;
+  border: 1px solid #9bd8b1;
+}
+
+.default-password-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.default-password-modal {
+  width: min(360px, 100%);
+  padding: 24px;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+  text-align: center;
+}
+
+.default-password-modal h3 {
+  margin: 0 0 10px;
+  color: #1f2937;
+  font-size: 20px;
+}
+
+.default-password-modal p {
+  margin: 0 0 22px;
+  color: #4b5563;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.default-password-modal-btn {
+  min-width: 96px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #60a3d9;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.default-password-modal-btn:hover {
+  background: #5995c6;
 }
 
 @media (max-width: 768px) {

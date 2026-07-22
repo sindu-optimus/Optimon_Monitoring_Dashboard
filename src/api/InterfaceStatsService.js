@@ -1,4 +1,6 @@
-const MESSAGE_TREND_API_BASE = "http://18.170.60.107:8085";
+import axiosInstance from "./axiosInstance";
+
+const INTERFACE_STATS_API_BASE = "http://18.168.87.76:8085";
 export const SERVICE_TREND_METRIC = "maxTimeDelay";
 export const QUEUE_TREND_METRIC = "maxPendingQueueCount";
 
@@ -35,15 +37,15 @@ export const getServiceGraphData = async ({
     to: toApiDateTime(to, "23:59:59"),
   });
 
-  const response = await fetch(
-    `${MESSAGE_TREND_API_BASE}/api/inbound-metrics/service-graph?${searchParams.toString()}`
+  const response = await axiosInstance.get(
+    `${INTERFACE_STATS_API_BASE}/api/inbound-metrics/service-graph?${searchParams.toString()}`
   );
 
-  if (!response.ok) {
+  if (response.status < 200 || response.status >= 300) {
     throw new Error("Failed to fetch service graph data");
   }
 
-  return response.json();
+  return response.data;
 };
 
 export const getQueueGraphData = async ({
@@ -63,13 +65,13 @@ export const getQueueGraphData = async ({
     toDateTime: toApiDateTime(toDateTime ?? to, "23:59:59"),
   });
 
-  const response = await fetch(
-    `${MESSAGE_TREND_API_BASE}/api/queue-metrics/queue-graph?${searchParams.toString()}`
+  const response = await axiosInstance.get(
+    `${INTERFACE_STATS_API_BASE}/api/queue-metrics/queue-graph?${searchParams.toString()}`
   );
 
-  if (!response.ok) {
+  if (response.status < 200 || response.status >= 300) {
     throw new Error("Failed to fetch queue graph data");
   }
 
-  return response.json();
+  return response.data;
 };
