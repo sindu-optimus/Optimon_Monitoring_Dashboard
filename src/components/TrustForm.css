@@ -28,12 +28,6 @@
   background-color: #5995c6;
 }
 
-/* ----------- ROOT CONTAINER ----------- */
-.page-layout {
-  display: flex;
-  min-height: 100vh;
-}
-
 .main-container {
   flex: 1;
   background: #f8fafc;

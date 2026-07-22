@@ -27,9 +27,9 @@
   flex-direction: column;
   gap: 8px;
   min-width: 240px;
-  color: #1f2937;
+  color: #000;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .emails-filter-select {

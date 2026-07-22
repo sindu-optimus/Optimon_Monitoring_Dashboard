@@ -44,11 +44,88 @@ body {
   overflow: hidden;
 }
 
+.session-expiry-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.48);
+}
+
+.session-expiry-modal {
+  width: min(380px, 100%);
+  padding: 24px;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
+  text-align: center;
+}
+
+.session-expiry-modal h3 {
+  margin: 0 0 10px;
+  color: #1f2937;
+  font-size: 20px;
+}
+
+.session-expiry-modal p {
+  margin: 0 0 18px;
+  color: #4b5563;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.session-expiry-error {
+  color: #d9534f !important;
+  font-size: 13px !important;
+}
+
+.session-expiry-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.session-expiry-btn {
+  min-width: 104px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.session-expiry-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.session-expiry-btn-secondary {
+  background: #ffffff;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+.session-expiry-btn-secondary:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.session-expiry-btn-primary {
+  background: #60a3d9;
+  color: #ffffff;
+}
+
+.session-expiry-btn-primary:hover:not(:disabled) {
+  background: #5995c6;
+}
+
 /* .main-container {
   flex: 1;
   padding: 24px;
   background: #f8fafc;
 } */
-
 
 

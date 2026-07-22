@@ -23,3 +23,14 @@ export const forgotPassword = ({ username, password }) => {
     { skipAuth: true }
   );
 };
+
+// REFRESH TOKEN API
+export const refreshAuthToken = (refreshToken) => {
+  return axiosInstance.post(
+    "/refresh-token",
+    {
+      refreshToken,
+    },
+    { skipAuth: true }
+  );
+};

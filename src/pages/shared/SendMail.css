@@ -302,11 +302,27 @@
   border: 1px solid #ccc;
   border-radius: 8px;
   padding: 10px;
+  box-sizing: border-box;
   background-color: #fff;
   font-size: 16px;
   line-height: 1.6;
   box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.1);
   margin-bottom: 20px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+
+.editor ul,
+.editor ol {
+  margin: 8px 0;
+  padding-left: 28px;
+  list-style-position: outside;
+}
+
+.editor li {
+  margin: 4px 0;
+  padding-left: 4px;
+  overflow-wrap: anywhere;
 }
 
 /* Submit button */

@@ -10,36 +10,174 @@ import {
   YAxis,
 } from "recharts";
 import {
+  QUEUE_TREND_METRIC,
+  SERVICE_TREND_METRIC,
   getQueueGraphData,
   getServiceGraphData,
+  toApiDateTime,
 } from "../../api/interfaceStatsService";
 import "./Dashboard.css";
 
 const HEALTH_THRESHOLD = 100;
+const DEFAULT_GROUP_BY = "FIVE_MINUTES";
+const DEFAULT_TIME_RANGE_HOURS = 24;
 
-const toDateInputValue = (date) => {
-  const pad = (part) => String(part).padStart(2, "0");
+const padDatePart = (part) => String(part).padStart(2, "0");
 
-  return [
+const toDateTimeInputValue = (date) => {
+  const datePart = [
     date.getFullYear(),
-    pad(date.getMonth() + 1),
-    pad(date.getDate()),
+    padDatePart(date.getMonth() + 1),
+    padDatePart(date.getDate()),
   ].join("-");
+  const timePart = [
+    padDatePart(date.getHours()),
+    padDatePart(date.getMinutes()),
+    padDatePart(date.getSeconds()),
+  ].join(":");
+
+  return `${datePart}T${timePart}`;
 };
 
-const getDailyDateRange = () => {
+const getDateRangeForHours = (hours) => {
   const to = new Date();
   const from = new Date(to);
-  from.setDate(from.getDate() - 60);
-  const fromDate = toDateInputValue(from);
-  const toDate = toDateInputValue(to);
+  from.setHours(from.getHours() - Number(hours || DEFAULT_TIME_RANGE_HOURS));
 
   return {
-    fromDate,
-    toDate,
-    fromDateTime: `${fromDate}T00:00:00`,
-    toDateTime: `${toDate}T23:59:59`,
+    fromDateTime: toDateTimeInputValue(from),
+    toDateTime: toDateTimeInputValue(to),
   };
+};
+
+const formatGroupLabel = (value) =>
+  String(value)
+    .split("_")
+    .map((part) => part[0] + part.slice(1).toLowerCase())
+    .join(" ");
+
+const isTimeBasedGroup = (groupBy) =>
+  groupBy === "FIVE_MINUTES" ||
+  groupBy === "THIRTY_MINUTES" ||
+  groupBy === "HOURLY";
+
+const formatChartAxisLabel = (label, groupBy) => {
+  if (!label) {
+    return "";
+  }
+
+  const normalizedLabel = String(label).replace(" ", "T");
+  const date = new Date(normalizedLabel);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(label);
+  }
+
+  if (isTimeBasedGroup(groupBy)) {
+    const datePart = date.toLocaleDateString([], {
+      month: "short",
+      day: "2-digit",
+    });
+    const timePart = date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+
+    return `${datePart} ${timePart}`;
+  }
+
+  if (groupBy === "MONTHLY") {
+    return date.toLocaleDateString([], {
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  return date.toLocaleDateString([], {
+    month: "short",
+    day: "2-digit",
+  });
+};
+
+const formatChartTooltipLabel = (label, groupBy) => {
+  if (!label) {
+    return "";
+  }
+
+  const normalizedLabel = String(label).replace(" ", "T");
+  const date = new Date(normalizedLabel);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(label);
+  }
+
+  if (isTimeBasedGroup(groupBy)) {
+    return date.toLocaleString([], {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+  }
+
+  if (groupBy === "MONTHLY") {
+    return date.toLocaleDateString([], {
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  return date.toLocaleDateString([], {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+};
+
+const getGraphLabel = (item) =>
+  item?.label ?? item?.createdOn ?? item?.date ?? item?.timestamp ?? "";
+
+const getGraphDate = (item) => {
+  const label = getGraphLabel(item);
+
+  if (!label) {
+    return null;
+  }
+
+  const date = new Date(String(label).replace(" ", "T"));
+
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const isWithinDateTimeRange = (item, fromDateTime, toDateTime) => {
+  const date = getGraphDate(item);
+
+  if (!date) {
+    return true;
+  }
+
+  const from = fromDateTime ? new Date(fromDateTime) : null;
+  const to = toDateTime ? new Date(toDateTime) : null;
+
+  if (from && !Number.isNaN(from.getTime()) && date < from) {
+    return false;
+  }
+
+  if (to && !Number.isNaN(to.getTime()) && date > to) {
+    return false;
+  }
+
+  return true;
+};
+
+const getGraphTimestamp = (item) => {
+  const date = getGraphDate(item);
+
+  return date ? date.getTime() : Number.MAX_SAFE_INTEGER;
 };
 
 const unwrapApiData = (response) => response?.data ?? response;
@@ -62,28 +200,10 @@ const getGraphRows = (response) => {
 const getNumber = (value) => Number(value) || 0;
 
 const getQueueValue = (item) =>
-  getNumber(
-    item?.pendingQueueCount ??
-      item?.pendingCount ??
-      item?.queueCount ??
-      item?.averagePendingQueueCount ??
-      item?.avgPendingQueueCount ??
-      item?.averageQueueCount ??
-      item?.count ??
-      item?.value
-  );
+  getNumber(item?.[QUEUE_TREND_METRIC]);
 
 const getServiceValue = (item) =>
-  getNumber(
-    item?.averageTimeDelay ??
-      item?.avgTimeDelay ??
-      item?.timeDelay ??
-      item?.idleTime ??
-      item?.averageIdleTime ??
-      item?.avgIdleTime ??
-      item?.delay ??
-      item?.value
-  );
+  getNumber(item?.[SERVICE_TREND_METRIC]);
 
 const getHealthStatus = (rows) =>
   rows.some((item) => getNumber(item?.value) > HEALTH_THRESHOLD)
@@ -95,26 +215,6 @@ const MOCK_DASHBOARD_DATA = {
     sent: true,
     time: "Dec 23, 2025 10:42 AM",
   },
-};
-
-const getGraphLabel = (item) =>
-  item?.label ?? item?.createdOn ?? item?.date ?? item?.timestamp ?? "";
-
-const formatDailyLabel = (label) => {
-  if (!label) {
-    return "";
-  }
-
-  const date = new Date(String(label).replace(" ", "T"));
-
-  if (Number.isNaN(date.getTime())) {
-    return String(label);
-  }
-
-  return date.toLocaleDateString([], {
-    month: "short",
-    day: "2-digit",
-  });
 };
 
 const Dashboard = () => {
@@ -177,12 +277,14 @@ const Dashboard = () => {
         return;
       }
 
-      const { fromDateTime, toDateTime } = getDailyDateRange();
+      const { fromDateTime, toDateTime } = getDateRangeForHours(
+        DEFAULT_TIME_RANGE_HOURS
+      );
+      const from = toApiDateTime(fromDateTime, "00:00:00");
+      const to = toApiDateTime(toDateTime, "23:59:59");
       const params = {
         trustId,
-        groupBy: "DAILY",
-        from: fromDateTime,
-        to: toDateTime,
+        groupBy: DEFAULT_GROUP_BY,
       };
 
       try {
@@ -192,10 +294,14 @@ const Dashboard = () => {
           ? {
               queueName: serviceName,
               ...params,
+              fromDateTime: from,
+              toDateTime: to,
             }
           : {
               serviceName,
               ...params,
+              from,
+              to,
             };
 
         console.log("[Dashboard] Graph query params:", requestParams);
@@ -203,12 +309,31 @@ const Dashboard = () => {
         const response = isQueueDashboard
           ? await getQueueGraphData(requestParams)
           : await getServiceGraphData(requestParams);
-        const rows = getGraphRows(response).map((item) => ({
-          label: formatDailyLabel(getGraphLabel(item)),
-          value: isQueueDashboard
-            ? getQueueValue(item)
-            : getServiceValue(item),
-        }));
+        const rows = getGraphRows(response)
+          .filter((item) =>
+            isWithinDateTimeRange(item, fromDateTime, toDateTime)
+          )
+          .map((item) => {
+            const graphLabel = getGraphLabel(item);
+
+            return {
+              label: formatChartAxisLabel(graphLabel, DEFAULT_GROUP_BY),
+              tooltipLabel: formatChartTooltipLabel(
+                graphLabel,
+                DEFAULT_GROUP_BY
+              ),
+              value: isQueueDashboard
+                ? getQueueValue(item)
+                : getServiceValue(item),
+              timestamp: getGraphTimestamp(item),
+            };
+          })
+          .sort((left, right) => left.timestamp - right.timestamp)
+          .map(({ label, tooltipLabel, value }) => ({
+            label,
+            tooltipLabel,
+            value,
+          }));
 
         setTrendData(rows);
       } catch (error) {
@@ -227,6 +352,10 @@ const Dashboard = () => {
 
   const { lastEmail } = dashboardData;
   const status = getHealthStatus(trendData);
+  const chartTitle = isQueueDashboard
+    ? `Pending Count (${formatGroupLabel(DEFAULT_GROUP_BY)})`
+    : `Time Delay (${formatGroupLabel(DEFAULT_GROUP_BY)})`;
+  const shouldShowEveryTimeTick = isTimeBasedGroup(DEFAULT_GROUP_BY);
 
   return (
     <div className="content">
@@ -250,35 +379,33 @@ const Dashboard = () => {
       {/* Charts */}
       <div className="chart-section">
         <div className="chart-card dashboard-trend-card">
-          <h3>
-            {isQueueDashboard
-              ? "Pending Queue Count Stats"
-              : "Avg Time Delay Stats"}
-          </h3>
+          <h3>{chartTitle}</h3>
           {trendLoading ? (
             <p className="dashboard-trend-status">Loading trend data...</p>
           ) : trendError ? (
             <p className="dashboard-trend-status error">{trendError}</p>
           ) : trendData.length ? (
-            <ResponsiveContainer width="100%" height={320}>
+            <ResponsiveContainer width="100%" height={360}>
               <LineChart data={trendData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="label"
-                  minTickGap={24}
-                  interval="preserveStartEnd"
-                  tick={{ fontSize: 12 }}
+                  interval={shouldShowEveryTimeTick ? 0 : "preserveStartEnd"}
+                  angle={shouldShowEveryTimeTick ? -35 : 0}
+                  textAnchor={shouldShowEveryTimeTick ? "end" : "middle"}
+                  height={shouldShowEveryTimeTick ? 72 : 30}
+                  minTickGap={shouldShowEveryTimeTick ? 0 : 24}
                 />
                 <YAxis allowDecimals={false} />
-                <Tooltip />
+                <Tooltip
+                  labelFormatter={(_, payload) =>
+                    payload?.[0]?.payload?.tooltipLabel || ""
+                  }
+                />
                 <Line
                   type="monotone"
                   dataKey="value"
-                  name={
-                    isQueueDashboard
-                      ? "Pending queue count"
-                      : "Avg time delay"
-                  }
+                  name={isQueueDashboard ? "Pending count" : "Time delay"}
                   stroke="#2B81BF"
                   strokeWidth={2}
                   dot={{ r: 3 }}

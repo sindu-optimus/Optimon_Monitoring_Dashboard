@@ -10,6 +10,7 @@ import {
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import SessionTimeout from "./components/SessionTimeout";
 import ProfileLayout from "./layouts/ProfileLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import Login from "./pages/auth/Login";
@@ -167,6 +168,81 @@ export default function App() {
       setTrustList([]);
     } finally {
       setTrustListLoaded(true);
+    }
+  }
+
+  function getTokenExpiryTime(userData) {
+    const expiry = userData?.tokenExpiresAt || localStorage.getItem("tokenExpiresAt");
+    const expiryTime = expiry ? new Date(expiry).getTime() : NaN;
+
+    if (Number.isFinite(expiryTime)) {
+      return expiryTime;
+    }
+
+    const expiresInSeconds =
+      Number(userData?.tokenExpiresInSeconds) ||
+      Number(localStorage.getItem("tokenExpiresInSeconds"));
+
+    if (Number.isFinite(expiresInSeconds) && expiresInSeconds > 0) {
+      return Date.now() + expiresInSeconds * 1000;
+    }
+
+    return null;
+  }
+
+  function getRefreshTokenExpiryTime(userData) {
+    const expiry =
+      userData?.refreshTokenExpiresAt ||
+      localStorage.getItem("refreshTokenExpiresAt");
+    const expiryTime = expiry ? new Date(expiry).getTime() : NaN;
+
+    if (Number.isFinite(expiryTime)) {
+      return expiryTime;
+    }
+
+    const expiresInSeconds =
+      Number(userData?.refreshTokenExpiresInSeconds) ||
+      Number(localStorage.getItem("refreshTokenExpiresInSeconds"));
+
+    if (Number.isFinite(expiresInSeconds) && expiresInSeconds > 0) {
+      return Date.now() + expiresInSeconds * 1000;
+    }
+
+    return null;
+  }
+
+  function persistSessionTokens(userData) {
+    if (userData?.token) {
+      localStorage.setItem("token", userData.token);
+    }
+
+    if (userData?.refreshToken) {
+      localStorage.setItem("refreshToken", userData.refreshToken);
+    }
+
+    if (userData?.tokenExpiresAt) {
+      localStorage.setItem("tokenExpiresAt", userData.tokenExpiresAt);
+    }
+
+    if (userData?.refreshTokenExpiresAt) {
+      localStorage.setItem(
+        "refreshTokenExpiresAt",
+        userData.refreshTokenExpiresAt
+      );
+    }
+
+    if (userData?.tokenExpiresInSeconds != null) {
+      localStorage.setItem(
+        "tokenExpiresInSeconds",
+        String(userData.tokenExpiresInSeconds)
+      );
+    }
+
+    if (userData?.refreshTokenExpiresInSeconds != null) {
+      localStorage.setItem(
+        "refreshTokenExpiresInSeconds",
+        String(userData.refreshTokenExpiresInSeconds)
+      );
     }
   }
 
@@ -336,9 +412,39 @@ export default function App() {
     return () => clearInterval(timer);
   }, [isLoggedIn, refreshTime, trustIds]);
 
+  useEffect(() => {
+    if (!isLoggedIn) {
+      return;
+    }
+
+    const refreshTokenExpiryTime = getRefreshTokenExpiryTime(loggedInUser);
+
+    if (!refreshTokenExpiryTime) {
+      return;
+    }
+
+    const logoutDelay = refreshTokenExpiryTime - Date.now();
+
+    if (logoutDelay <= 0) {
+      handleLogout();
+      return;
+    }
+
+    const logoutTimer = setTimeout(() => {
+      handleLogout();
+    }, logoutDelay);
+
+    return () => clearTimeout(logoutTimer);
+  }, [
+    isLoggedIn,
+    loggedInUser?.refreshToken,
+    loggedInUser?.refreshTokenExpiresAt,
+    loggedInUser?.refreshTokenExpiresInSeconds,
+  ]);
+
   /* ===================== LOGIN ===================== */
   const handleLogin = (userData, password = "") => {
-    const uname = userData?.username || userData?.email || "";
+    const uname = userData?.username || "";
 
     console.group("[App] Login session");
     console.log("Login details:", {
@@ -355,9 +461,8 @@ export default function App() {
     localStorage.setItem("isLoggedIn", "true");
     localStorage.setItem("username", uname);
     localStorage.setItem("loggedInUser", JSON.stringify(userData || null));
-    if (userData?.token) {
-      localStorage.setItem("token", userData.token);
-    } else {
+    persistSessionTokens(userData || {});
+    if (!userData?.token) {
       localStorage.removeItem("token");
     }
     sessionStorage.setItem("sessionPassword", password);
@@ -601,6 +706,12 @@ export default function App() {
       </Routes>
 
       {showHeaderAndFooter && <Footer />}
+
+      <SessionTimeout
+        isLoggedIn={isLoggedIn}
+        accessTokenExpiresAt={getTokenExpiryTime(loggedInUser)}
+        onLogout={handleLogout}
+      />
     </div>
   );
 }

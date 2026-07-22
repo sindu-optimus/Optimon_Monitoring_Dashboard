@@ -1,6 +1,6 @@
 import axiosInstance from "./axiosInstance";
 
-const INTERFACE_STATS_API_BASE = "http://18.170.60.107:8085";
+const INTERFACE_STATS_API_BASE = "http://18.168.87.76:8085";
 export const SERVICE_TREND_METRIC = "maxTimeDelay";
 export const QUEUE_TREND_METRIC = "maxPendingQueueCount";
 

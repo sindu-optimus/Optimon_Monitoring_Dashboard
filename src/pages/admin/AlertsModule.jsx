@@ -197,6 +197,9 @@ const getAlertFilterValue = (alertFilter) => {
   return undefined;
 };
 
+const normalizeSearchText = (value) =>
+  String(value ?? "").trim().toLowerCase();
+
 export default function AlertsModule({
   isAdminUser = false,
   userProfile = null,
@@ -214,7 +217,7 @@ export default function AlertsModule({
   );
   const [criticalInterfaces, setCriticalInterfaces] = useState([]);
   const [criticalInboundReceivers, setCriticalInboundReceivers] = useState([]);
-  const [trustLoading, setTrustLoading] = useState(true);
+  const [, setTrustLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
   const [loadedViews, setLoadedViews] = useState({
     [VIEW_OPTIONS.INBOUND]: false,
@@ -229,6 +232,7 @@ export default function AlertsModule({
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [exportLoading, setExportLoading] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
 
   const isAlertEnabled = (row) =>
     getBooleanValue(
@@ -333,10 +337,6 @@ export default function AlertsModule({
 
   const tableRows = useMemo(() => {
     if (selectedView === VIEW_OPTIONS.INBOUND) {
-      const selectedTrust = trusts.find(
-        (trust) => String(trust.id) === String(selectedTrustId)
-      );
-      const selectedTrustName = selectedTrust?.name;
       const inboundItems = criticalInboundReceivers.filter((item) => {
         if (!selectedTrustId) {
           return true;
@@ -414,12 +414,11 @@ export default function AlertsModule({
     criticalInboundReceivers,
     criticalInterfaces,
     selectedTrustId,
-    selectedTrustName,
     selectedView,
-    trusts,
   ]);
 
   const filteredTableRows = useMemo(() => {
+    const searchText = normalizeSearchText(searchValue);
     const filteredRows = tableRows.filter((row) => {
       if (selectedTypeFilter === TYPE_FILTER_OPTIONS.CRITICAL) {
         if (!isCriticalRow(row)) {
@@ -444,11 +443,44 @@ export default function AlertsModule({
       return true;
     });
 
-    return filteredRows.map((row, index) => ({
+    const searchedRows = searchText
+      ? filteredRows.filter((row) => {
+          const searchableValues =
+            selectedView === VIEW_OPTIONS.INBOUND
+              ? [
+                  row.inboundName,
+                  row.rawItem?.serviceName,
+                  row.rawItem?.interfaceName,
+                  row.rawItem?.interface_name,
+                  row.rawItem?.name,
+                ]
+              : [
+                  row.interfaceName,
+                  row.rawItem?.endpointName,
+                  row.rawItem?.interfaceName,
+                  row.rawItem?.interface_name,
+                  row.rawItem?.queueName,
+                  row.rawItem?.serviceName,
+                  row.rawItem?.name,
+                ];
+
+          return searchableValues.some((value) =>
+            normalizeSearchText(value).includes(searchText)
+          );
+        })
+      : filteredRows;
+
+    return searchedRows.map((row, index) => ({
       ...row,
       serialNo: index + 1,
     }));
-  }, [selectedAlertFilter, selectedTypeFilter, tableRows]);
+  }, [
+    searchValue,
+    selectedAlertFilter,
+    selectedTypeFilter,
+    selectedView,
+    tableRows,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filteredTableRows.length / pageSize));
   const paginatedTableRows = useMemo(() => {
@@ -468,7 +500,13 @@ export default function AlertsModule({
 
   useEffect(() => {
     setCurrentPage(0);
-  }, [selectedTrustId, selectedView, selectedAlertFilter, selectedTypeFilter]);
+  }, [
+    searchValue,
+    selectedTrustId,
+    selectedView,
+    selectedAlertFilter,
+    selectedTypeFilter,
+  ]);
 
   useEffect(() => {
     if (currentPage >= totalPages) {
@@ -831,6 +869,34 @@ export default function AlertsModule({
       </div>
 
       <div className="critical-toolbar">
+        <div className="critical-filter-group critical-search-group">
+          <label className="critical-label" htmlFor="critical-search">
+            Search
+          </label>
+
+          <div className="critical-search-field">
+            <i className="ri-search-line" aria-hidden="true"></i>
+            <input
+              id="critical-search"
+              type="text"
+              className="critical-search-input"
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              placeholder="Search here..."
+            />
+            {searchValue && (
+              <button
+                type="button"
+                className="critical-search-clear"
+                onClick={() => setSearchValue("")}
+                aria-label="Clear search"
+              >
+                <i className="ri-close-line" aria-hidden="true"></i>
+              </button>
+            )}
+          </div>
+        </div>
+        
         <div className="critical-filter-group">
           <label className="critical-label" htmlFor="critical-trust-select">
             Trust Selection

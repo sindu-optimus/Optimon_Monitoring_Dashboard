@@ -31,6 +31,14 @@ const REASON_OPTIONS = [
   "Others",
 ];
 
+const getInitialInterfaceName = (initial, routeInterfaceName) =>
+  initial?.interface_name ??
+  initial?.interfaceName ??
+  initial?.interface?.name ??
+  (typeof initial?.interface === "string" ? initial.interface : undefined) ??
+  routeInterfaceName ??
+  "";
+
 const AddActions = ({
   initial = EMPTY_INITIAL,
   onSuccess,
@@ -41,6 +49,7 @@ const AddActions = ({
   const { interfaceName: routeInterfaceName = "" } = location.state || {};
 
   const editorRef = useRef(null);
+  const initializedFormKeyRef = useRef(null);
 
   const [selectedReason, setSelectedReason] = useState("");
   const [customReason, setCustomReason] = useState("");
@@ -57,6 +66,10 @@ const AddActions = ({
 
   const [fontSize, setFontSize] = useState("3");
   const [color, setColor] = useState("#000000");
+
+  const initialFormKey = initial?.id || initial?.supportIssueId
+    ? `edit-${initial.id ?? initial.supportIssueId}`
+    : `new-${routeInterfaceName}`;
 
   useEffect(() => {
     let isActive = true;
@@ -79,6 +92,11 @@ const AddActions = ({
   }, [userProfile]);
 
   useEffect(() => {
+    // A parent re-render can provide a new object reference for `initial`.
+    // Do not use that as a reason to overwrite values the user is entering.
+    if (initializedFormKeyRef.current === initialFormKey) return;
+
+    initializedFormKeyRef.current = initialFormKey;
     const existingReason = (initial?.description1 ?? initial?.issue ?? "").trim();
     const matchesPresetReason = REASON_OPTIONS.find(
       (option) => option !== "Others" && option === existingReason
@@ -89,12 +107,7 @@ const AddActions = ({
         initial?.trustId?.toString() ??
         ""
     );
-    setInterfaceName(
-      initial?.interface_name ??
-        initial?.interfaceName ??
-        routeInterfaceName ??
-        ""
-    );
+    setInterfaceName(getInitialInterfaceName(initial, routeInterfaceName));
     setSelectedReason(
       matchesPresetReason || (existingReason ? "Others" : "")
     );
@@ -103,7 +116,7 @@ const AddActions = ({
       editorRef.current.innerHTML =
         initial?.description2 ?? initial?.action ?? "";
     }
-  }, [initial, routeInterfaceName]);
+  }, [initial, initialFormKey, routeInterfaceName]);
 
   useEffect(() => {
     if (trustOptions.length === 0) return;
@@ -139,9 +152,7 @@ const AddActions = ({
           new Set(
             [
               ...fetchedInterfaceNames,
-              routeInterfaceName,
-              initial?.interface_name,
-              initial?.interfaceName,
+              getInitialInterfaceName(initial, routeInterfaceName),
             ].filter(Boolean)
           )
         ).sort((a, b) => a.localeCompare(b));
@@ -151,7 +162,7 @@ const AddActions = ({
         if (!isActive) return;
         console.error("Error fetching interface names:", fetchError);
         setInterfaceOptions(
-          [routeInterfaceName, initial?.interface_name, initial?.interfaceName]
+          [getInitialInterfaceName(initial, routeInterfaceName)]
             .filter(Boolean)
             .filter((value, index, arr) => arr.indexOf(value) === index)
         );
@@ -173,13 +184,6 @@ const AddActions = ({
     routeInterfaceName,
     selectedTrustId,
   ]);
-
-  useEffect(() => {
-    if (!interfaceName) return;
-    if (interfaceOptions.includes(interfaceName)) return;
-
-    setInterfaceName("");
-  }, [interfaceName, interfaceOptions]);
 
   const resetMessages = () => {
     setError("");
@@ -234,6 +238,8 @@ const AddActions = ({
     getReasonValue() &&
     getActionText();
 
+  const isEditing = Boolean(initial?.id || initial?.supportIssueId);
+
   const resetForm = () => {
     setSelectedTrustId("");
     setInterfaceName("");
@@ -263,7 +269,7 @@ const AddActions = ({
     };
 
     try {
-      if (initial?.id || initial?.supportIssueId) {
+      if (isEditing) {
         const id = initial.id ?? initial.supportIssueId;
         const updatePayload = {
           id,
@@ -345,14 +351,14 @@ const AddActions = ({
       {success && <div className="form-msg form-success">{success}</div>}
 
       <form className="form actions-form" onSubmit={handleSubmit} noValidate>
-        <span
+        {/* <span
           className="actions-refresh-info"
-          data-tooltip="This form refreshes every minute to make sure the interface names are always up to date with the latest data."
+          data-tooltip="Your entries remain in place until you submit or leave this form."
           tabIndex={0}
-          aria-label="This form refreshes every minute to make sure the interface names are always up to date with the latest dashboard data."
+          aria-label="Your entries remain in place until you submit or leave this form."
         >
           <FontAwesomeIcon icon={faCircleInfo} />
-        </span>
+        </span> */}
 
         <div className="form-group">
           <label>Trust Name*</label>
@@ -401,6 +407,9 @@ const AddActions = ({
                 {option}
               </option>
             ))}
+            {interfaceName && !interfaceOptions.includes(interfaceName) && (
+              <option value={interfaceName}>{interfaceName}</option>
+            )}
           </select>
           {errors.interfaceName && (
             <p className="input-error">{errors.interfaceName}</p>
@@ -510,7 +519,7 @@ const AddActions = ({
           className="btn"
           disabled={loading || !isFormValid}
         >
-          {loading ? "Saving..." : "Submit"}
+          {loading ? "Saving..." : isEditing ? "Update Action" : "Submit"}
         </button>
       </form>
     </div>

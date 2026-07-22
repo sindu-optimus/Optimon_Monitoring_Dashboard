@@ -659,7 +659,7 @@ const getHighestChartPoint = (chartData) =>
     chartData[0] || null
   );
 
-function PdfPointLabel({ x, y, value, metricLabel }) {
+function PdfPointLabel({ x, y, value }) {
   if (x === undefined || y === undefined || value === undefined) {
     return null;
   }
@@ -671,7 +671,7 @@ function PdfPointLabel({ x, y, value, metricLabel }) {
       className="interface-stats-pdf-point-label"
       textAnchor="middle"
     >
-      {`${metricLabel}: ${formatPdfNumber(value)}`}
+      {formatPdfNumber(value)}
     </text>
   );
 }
@@ -700,11 +700,14 @@ function PdfExportReport({
   chartTitle,
   fullMetricLabel,
   fromDateTime,
+  groupByLabel,
+  interfaceAliasLabel,
   interfaceLabel,
   interfaceTypeLabel,
-  metricLabel,
+  metricUnitLabel,
   toDateTime,
   trustLabel,
+  yAxisLabel,
 }) {
   const highestPoint = getHighestChartPoint(chartData);
 
@@ -719,27 +722,49 @@ function PdfExportReport({
       </header>
 
       <section className="interface-stats-pdf-meta">
-        <div>
-          <span>Trust Name</span>
+        <div className="interface-stats-pdf-meta-item trust-name">
+          <span>Trust Name:</span>
           <strong>{trustLabel || "N/A"}</strong>
         </div>
-        <div>
-          <span>Type</span>
+        <div className="interface-stats-pdf-meta-item interface-type">
+          <span>Type:</span>
           <strong>{interfaceTypeLabel || "N/A"}</strong>
         </div>
-        <div>
-          <span>Interface Name</span>
+        <div className="interface-stats-pdf-meta-item alias-name">
+          <span>Alias Name:</span>
+          <strong>{interfaceAliasLabel || "N/A"}</strong>
+        </div>
+        <div className="interface-stats-pdf-meta-item interface-name">
+          <span>Interface Name:</span>
           <strong>{interfaceLabel || "N/A"}</strong>
         </div>
-        <div>
-          <span>From</span>
+        <div className="interface-stats-pdf-meta-item group-by">
+          <span>Group By:</span>
+          <strong>{groupByLabel || "N/A"}</strong>
+        </div>
+        <div className="interface-stats-pdf-meta-item x-axis">
+          <span>X-Axis:</span>
+          <strong>Date / Time</strong>
+        </div>
+        <div className="interface-stats-pdf-meta-item from-date">
+          <span>From:</span>
           <strong>{formatDateTimeDisplay(fromDateTime) || "N/A"}</strong>
         </div>
-        <div>
-          <span>To</span>
+        <div className="interface-stats-pdf-meta-item to-date">
+          <span>To:</span>
           <strong>{formatDateTimeDisplay(toDateTime) || "N/A"}</strong>
         </div>
+        <div className="interface-stats-pdf-meta-item y-axis">
+          <span>Y-Axis:</span>
+          <strong>{yAxisLabel || "N/A"}</strong>
+        </div>
       </section>
+
+      {metricUnitLabel && (
+        <div className="interface-stats-pdf-metric-unit">
+          {metricUnitLabel}
+        </div>
+      )}
 
       {highestPoint && (
         <section className="interface-stats-pdf-highlight">
@@ -774,9 +799,7 @@ function PdfExportReport({
             >
               <LabelList
                 dataKey="value"
-                content={(props) => (
-                  <PdfPointLabel {...props} metricLabel={metricLabel} />
-                )}
+                content={(props) => <PdfPointLabel {...props} />}
               />
             </Line>
           </LineChart>
@@ -1182,8 +1205,16 @@ export default function InterfaceStats({ userProfile = null }) {
   const chartTitle = isOutboundSelected
     ? `Pending Count (${formatGroupLabel(activeGroupBy)})`
     : `Time Delay (${formatGroupLabel(activeGroupBy)})`;
-  const metricLabel = isOutboundSelected ? "Count" : "Idle";
   const fullMetricLabel = isOutboundSelected ? "Pending count" : "Idle time";
+  const groupByLabel = formatGroupLabel(activeGroupBy);
+  const selectedInterfaceOption = interfaceOptions.find(
+    (option) => option.name === serviceName && option.type === interfaceType
+  );
+  const interfaceAliasLabel =
+    selectedInterfaceOption?.aliasName ||
+    (serviceName === routeServiceName ? routeAliasName : "");
+  const metricUnitLabel = isOutboundSelected ? "" : "Idle Time (in mins)";
+  const yAxisLabel = isOutboundSelected ? "Pending Count" : "Time Delay";
   const shouldShowEveryTimeTick = isTimeBasedGroup(activeGroupBy);
   const handleDownloadPdf = async () => {
     const reportElement = pdfReportRef.current;
@@ -1359,9 +1390,10 @@ export default function InterfaceStats({ userProfile = null }) {
             className="interface-stats-download"
             onClick={handleDownloadPdf}
             disabled={loading || !chartData.length}
+            aria-label="Download PDF"
+            title="Download PDF"
           >
             <i className="ri-download-2-line" aria-hidden="true" />
-            Download PDF
           </button>
         </div>
 
@@ -1414,11 +1446,14 @@ export default function InterfaceStats({ userProfile = null }) {
               chartTitle={chartTitle}
               fullMetricLabel={fullMetricLabel}
               fromDateTime={fromDateTime}
+              groupByLabel={groupByLabel}
+              interfaceAliasLabel={interfaceAliasLabel}
               interfaceLabel={serviceName}
               interfaceTypeLabel={getInterfaceTypeLabel(interfaceType)}
-              metricLabel={metricLabel}
+              metricUnitLabel={metricUnitLabel}
               toDateTime={toDateTime}
               trustLabel={trustName}
+              yAxisLabel={yAxisLabel}
             />
           </div>
         </div>

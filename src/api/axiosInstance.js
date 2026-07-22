@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: "http://18.170.60.107:8085/api",
+  baseURL: "http://18.168.87.76:8085/api",
 });
 
 const getStoredUserToken = () => {

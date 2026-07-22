@@ -5,6 +5,8 @@ import bgVideo from "../../assets/servers-bg.mp4";
 import { forgotPassword, loginUser } from "../../api/loginService";
 import "./Login.css";
 
+const DEFAULT_PASSWORD = "optimus@123";
+
 const Login = ({ onLogin }) => {
   const [loginData, setLoginData] = useState({
     username: "",
@@ -23,6 +25,10 @@ const Login = ({ onLogin }) => {
   const [apiError, setApiError] = useState("");
   const [apiMessage, setApiMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showDefaultPasswordPopup, setShowDefaultPasswordPopup] =
+    useState(false);
+  const [showPasswordChangedPopup, setShowPasswordChangedPopup] =
+    useState(false);
 
   /* ---------- VALIDATION ---------- */
   const validate = (trigger) => {
@@ -46,6 +52,10 @@ const Login = ({ onLogin }) => {
       }
 
       if (isForgotPassword) {
+        if (forgotData.password === DEFAULT_PASSWORD) {
+          err.password = "You are entering default password, please change that";
+        }
+
         if (!forgotData.confirmPassword) {
           err.confirmPassword = "Confirm password is required";
         } else if (forgotData.confirmPassword !== forgotData.password) {
@@ -68,6 +78,11 @@ const Login = ({ onLogin }) => {
   const isFormValid = isForgotPassword
     ? isForgotFormValid
     : isLoginFormValid;
+
+  const isForgotPasswordDefault = forgotData.password === DEFAULT_PASSWORD;
+  const canSubmitForm = isForgotPassword
+    ? isFormValid && !isForgotPasswordDefault
+    : isFormValid;
 
   const updateField = (field, value) => {
     if (isForgotPassword) {
@@ -97,7 +112,56 @@ const Login = ({ onLogin }) => {
   };
 
   const toggleForgotPassword = () => {
-    setIsForgotPassword((prev) => !prev);
+    const nextIsForgotPassword = !isForgotPassword;
+
+    if (nextIsForgotPassword) {
+      setForgotData((prev) => ({
+        ...prev,
+        username: prev.username || loginData.username,
+      }));
+    } else {
+      setLoginData((prev) => ({
+        ...prev,
+        username: prev.username || forgotData.username,
+      }));
+    }
+
+    setIsForgotPassword(nextIsForgotPassword);
+    setErrors({});
+    setApiError("");
+    setApiMessage("");
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+  };
+
+  const handlePasswordChangedOk = () => {
+    setShowPasswordChangedPopup(false);
+    setIsForgotPassword(false);
+    setLoginData((prev) => ({
+      ...prev,
+      username: forgotData.username || prev.username,
+      password: "",
+    }));
+    setForgotData({
+      username: "",
+      password: "",
+      confirmPassword: "",
+    });
+    setErrors({});
+    setApiError("");
+    setApiMessage("");
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+  };
+
+  const handleDefaultPasswordOk = () => {
+    setShowDefaultPasswordPopup(false);
+    setForgotData({
+      username: loginData.username,
+      password: "",
+      confirmPassword: "",
+    });
+    setIsForgotPassword(true);
     setErrors({});
     setApiError("");
     setApiMessage("");
@@ -110,7 +174,7 @@ const Login = ({ onLogin }) => {
     e.preventDefault();
 
     const validationErrors = validate("submit");
-    if (Object.keys(validationErrors).length || !isFormValid) return;
+    if (Object.keys(validationErrors).length || !canSubmitForm) return;
 
     try {
       setLoading(true);
@@ -123,12 +187,7 @@ const Login = ({ onLogin }) => {
           password: forgotData.password,
         });
 
-        setApiMessage("Password updated successfully");
-        setForgotData({
-          username: "",
-          password: "",
-          confirmPassword: "",
-        });
+        setShowPasswordChangedPopup(true);
         return;
       }
 
@@ -144,6 +203,11 @@ const Login = ({ onLogin }) => {
       });
       console.log("Logged-in user data:", res.data);
       console.groupEnd();
+
+      if (loginData.password === DEFAULT_PASSWORD) {
+        setShowDefaultPasswordPopup(true);
+        return;
+      }
 
       onLogin(res.data, loginData.password);
 
@@ -292,6 +356,48 @@ const Login = ({ onLogin }) => {
           </div>
         </div>
       </div>
+
+      {showDefaultPasswordPopup && (
+        <div
+          className="default-password-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="default-password-title"
+        >
+          <div className="default-password-modal">
+            <h3 id="default-password-title">Change default password</h3>
+            <p>You are using default password, please change it</p>
+            <button
+              type="button"
+              className="default-password-modal-btn"
+              onClick={handleDefaultPasswordOk}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showPasswordChangedPopup && (
+        <div
+          className="default-password-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="password-changed-title"
+        >
+          <div className="default-password-modal">
+            <h3 id="password-changed-title">Password changed</h3>
+            <p>Password has been changed successfully, go to login page</p>
+            <button
+              type="button"
+              className="default-password-modal-btn"
+              onClick={handlePasswordChangedOk}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
