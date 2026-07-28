@@ -1,11 +1,8 @@
-import axiosInstance from "./axiosInstance";
-
-// const METRICS_API_BASE = "http://18.168.87.76:8084";
-const METRICS_API_BASE = "http://18.168.87.76:8085";
+import { rootAxiosInstance } from "./axiosInstance";
 
 const sendMetricMutation = async (endpoint, options = {}) => {
-  const response = await axiosInstance({
-    url: `${METRICS_API_BASE}${endpoint}`,
+  const response = await rootAxiosInstance({
+    url: endpoint,
     method: options.method || "GET",
     headers: {
       "Content-Type": "application/json",
@@ -33,8 +30,8 @@ const sendMetricMutation = async (endpoint, options = {}) => {
 };
 
 export const getMetricDetails = async (trustId) => {
-  const response = await axiosInstance.get(
-    `${METRICS_API_BASE}/getMetricDetails/?trustId=${trustId}`
+  const response = await rootAxiosInstance.get(
+    `/getMetricDetails/?trustId=${trustId}`
   );
 
   if (response.status < 200 || response.status >= 300) {

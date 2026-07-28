@@ -3,9 +3,9 @@ export function getTrustMeta(data) {
     data?.inboundDetails?.find((item) => item?.trustId != null) || null;
   const queue =
     data?.queueDetails?.find((item) => item?.trustId != null) || null;
-  const source = inbound || queue;
+  const source = inbound || queue || data;
 
-  if (!source) {
+  if (!source || source.trustId == null) {
     return {
       trustId: null,
       trustName: null,
@@ -17,6 +17,7 @@ export function getTrustMeta(data) {
 
   return {
     trustId,
-    trustName: source.trustName || (trustId != null ? `Trust ${trustId}` : null),
+    trustName:
+      source.trustName || (trustId != null ? `Trust ${trustId}` : null),
   };
 }

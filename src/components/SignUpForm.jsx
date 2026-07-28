@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { getTrusts } from "../api/trustService";
 import { createUser, updateUser } from "../api/userService";
-import { filterTrustsByAccess } from "../utils/trustAccess";
 import "./SignUpForm.css";
 
 const USERNAME_REGEX = /^[A-Za-z0-9-]+$/;
@@ -66,7 +65,7 @@ export default function SignUpForm({
 
         const trustsSource = Array.isArray(availableTrusts)
           ? availableTrusts
-          : filterTrustsByAccess((await getTrusts()).data || [], null);
+          : (await getTrusts()).data || [];
 
         setTrustOptions(
           trustsSource.map((trust) => ({

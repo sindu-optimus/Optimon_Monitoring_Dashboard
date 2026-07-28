@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import * as XLSX from "xlsx";
 import TrustForm from "../../components/TrustForm";
+import SearchBar from "../../components/SearchBar";
 import { getTrusts, deleteTrust } from "../../api/trustService";
 import "./AddTrust.css";
 
@@ -8,6 +9,7 @@ export default function AddTrust() {
   const [showForm, setShowForm] = useState(false);
   const [trusts, setTrusts] = useState([]);
   const [editingTrust, setEditingTrust] = useState(null);
+  const [searchValue, setSearchValue] = useState("");
 
   useEffect(() => {
     fetchTrusts();
@@ -44,12 +46,25 @@ export default function AddTrust() {
     }
   };
 
+  const filteredTrusts = useMemo(() => {
+    const searchText = searchValue.trim().toLowerCase();
+
+    if (!searchText) return trusts;
+
+    return trusts.filter((trust) =>
+      [trust?.name, trust?.description, trust?.isEnabled ? "active yes" : "inactive no"]
+        .join(" ")
+        .toLowerCase()
+        .includes(searchText)
+    );
+  }, [searchValue, trusts]);
+
   const downloadExcelFile = () => {
-    if (!trusts.length) return;
+    if (!filteredTrusts.length) return;
 
     const workbookRows = [
       ["S.No", "Trust Name", "Description", "Status"],
-      ...trusts.map((trust, index) => [
+      ...filteredTrusts.map((trust, index) => [
         index + 1,
         trust.name || "-",
         trust.description || "-",
@@ -89,12 +104,20 @@ export default function AddTrust() {
         <h2>Trusts List</h2>
       </div>
 
-      <div className="trustForm-actions">
+      <div className="trust-toolbar">
+        <SearchBar
+          className="trust-search"
+          label="Search"
+          value={searchValue}
+          onChange={setSearchValue}
+          placeholder="Search trusts..."
+        />
+        <div className="trustForm-actions">
         <button
           type="button"
           className="download-trust-btn"
           onClick={downloadExcelFile}
-          disabled={trusts.length === 0}
+          disabled={filteredTrusts.length === 0}
         >
           <i className="ri-file-excel-2-line" aria-hidden="true"></i>
           Download Excel
@@ -109,6 +132,7 @@ export default function AddTrust() {
         >
           Add Trust
         </button>
+        </div>
       </div>
 
       <div className="trust-table-wrap">
@@ -124,14 +148,14 @@ export default function AddTrust() {
           </thead>
 
           <tbody>
-            {trusts.length === 0 ? (
+            {filteredTrusts.length === 0 ? (
               <tr>
                 <td colSpan="5" className="trust-empty">
                   No trusts found
                 </td>
               </tr>
             ) : (
-              trusts.map((trust, index) => (
+              filteredTrusts.map((trust, index) => (
                 <tr key={trust.id}>
                   <td>{index + 1}</td>
                   <td>{trust.name}</td>

@@ -8,6 +8,13 @@ import "./Servers.css";
 
 const DASHBOARD_SUPPORT_LOOKBACK_DAYS = 365;
 
+const sortActiveTrustsFirst = (servers = []) =>
+  [...servers].sort(
+    (left, right) =>
+      Number(Boolean(left.emptyQueueMessage)) -
+      Number(Boolean(right.emptyQueueMessage))
+  );
+
 const toApiDate = (date) => {
   const pad = (part) => String(part).padStart(2, "0");
 
@@ -66,6 +73,7 @@ function extractServersFromData(dataList, colorMapRef) {
       bgColor: colorMapRef.current[trustId],
       inbound: data.inboundDetails || [],
       queue: data.queueDetails || [],
+      emptyQueueMessage: data.message || "",
     });
 
     return acc;
@@ -118,11 +126,11 @@ export default function Servers({
       selectedTrustIds.length === 0 ||
       selectedTrustIds.includes("ALL")
     ) {
-      return allServers;
+      return sortActiveTrustsFirst(allServers);
     }
 
-    return allServers.filter((s) =>
-      selectedTrustIds.includes(String(s.trustId))
+    return sortActiveTrustsFirst(
+      allServers.filter((s) => selectedTrustIds.includes(String(s.trustId)))
     );
   }, [jsonData, selectedTrustIds]);
 

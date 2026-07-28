@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
+import axiosInstance from "../../api/axiosInstance";
 import {
   CartesianGrid,
+  LabelList,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -19,8 +21,39 @@ import {
 import "./Dashboard.css";
 
 const HEALTH_THRESHOLD = 100;
-const DEFAULT_GROUP_BY = "FIVE_MINUTES";
+const DEFAULT_GROUP_BY = "HOURLY";
 const DEFAULT_TIME_RANGE_HOURS = 24;
+const GROUP_BY_OPTIONS = [
+  "FIVE_MINUTES",
+  "THIRTY_MINUTES",
+  "HOURLY",
+  "DAILY",
+  "MONTHLY",
+];
+
+// Keep the selector useful for the time window being queried. The complete
+// list remains available when the selected date range is large enough.
+const getAvailableGroupByOptions = (fromDateTime, toDateTime) => {
+  const from = new Date(fromDateTime);
+  const to = new Date(toDateTime);
+  const hours = (to.getTime() - from.getTime()) / (60 * 60 * 1000);
+
+  if (!Number.isFinite(hours) || hours <= 24) {
+    return GROUP_BY_OPTIONS.filter((option) =>
+      ["FIVE_MINUTES", "THIRTY_MINUTES", "HOURLY"].includes(option)
+    );
+  }
+
+  if (hours <= 31 * 24) {
+    return GROUP_BY_OPTIONS.filter((option) =>
+      ["HOURLY", "DAILY"].includes(option)
+    );
+  }
+
+  return GROUP_BY_OPTIONS.filter((option) =>
+    ["DAILY", "MONTHLY"].includes(option)
+  );
+};
 
 const padDatePart = (part) => String(part).padStart(2, "0");
 
@@ -199,6 +232,25 @@ const getGraphRows = (response) => {
 
 const getNumber = (value) => Number(value) || 0;
 
+const formatLastEmailTime = (value) => {
+  if (!value) {
+    return "Not Sent";
+  }
+
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime())
+    ? "Not Sent"
+    : date.toLocaleString([], {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+};
+
 const getQueueValue = (item) =>
   getNumber(item?.[QUEUE_TREND_METRIC]);
 
@@ -254,6 +306,8 @@ const Dashboard = () => {
   const [trendData, setTrendData] = useState([]);
   const [trendLoading, setTrendLoading] = useState(false);
   const [trendError, setTrendError] = useState("");
+  const [groupBy, setGroupBy] = useState(DEFAULT_GROUP_BY);
+  const [lastEmailTime, setLastEmailTime] = useState("");
 
   useEffect(() => {
     // simulate API delay
@@ -263,6 +317,34 @@ const Dashboard = () => {
 
     return () => clearTimeout(timer);
   }, [id]);
+
+  useEffect(() => {
+    const loadLastEmailTime = async () => {
+      if (!trustId || !interfaceActualName) {
+        setLastEmailTime("");
+        return;
+      }
+
+      try {
+        const response = await axiosInstance.get("/emails/sent-time", {
+          params: {
+            trust_id: trustId,
+            interface_name: interfaceActualName,
+          },
+        });
+        const responseData = response?.data;
+
+        setLastEmailTime(
+          responseData?.createdOn ?? responseData?.data?.createdOn ?? ""
+        );
+      } catch (error) {
+        console.error("Error loading last email time:", error);
+        setLastEmailTime("");
+      }
+    };
+
+    loadLastEmailTime();
+  }, [interfaceActualName, trustId]);
 
   useEffect(() => {
     const loadDashboardTrend = async () => {
@@ -284,7 +366,7 @@ const Dashboard = () => {
       const to = toApiDateTime(toDateTime, "23:59:59");
       const params = {
         trustId,
-        groupBy: DEFAULT_GROUP_BY,
+        groupBy,
       };
 
       try {
@@ -317,10 +399,10 @@ const Dashboard = () => {
             const graphLabel = getGraphLabel(item);
 
             return {
-              label: formatChartAxisLabel(graphLabel, DEFAULT_GROUP_BY),
+              label: formatChartAxisLabel(graphLabel, groupBy),
               tooltipLabel: formatChartTooltipLabel(
                 graphLabel,
-                DEFAULT_GROUP_BY
+                groupBy
               ),
               value: isQueueDashboard
                 ? getQueueValue(item)
@@ -346,16 +428,22 @@ const Dashboard = () => {
     };
 
     loadDashboardTrend();
-  }, [isQueueDashboard, serviceName, trustId, trustName]);
+  }, [groupBy, isQueueDashboard, serviceName, trustId, trustName]);
 
   if (!dashboardData) return <p>Loading data...</p>;
 
-  const { lastEmail } = dashboardData;
   const status = getHealthStatus(trendData);
   const chartTitle = isQueueDashboard
-    ? `Pending Count (${formatGroupLabel(DEFAULT_GROUP_BY)})`
-    : `Time Delay (${formatGroupLabel(DEFAULT_GROUP_BY)})`;
-  const shouldShowEveryTimeTick = isTimeBasedGroup(DEFAULT_GROUP_BY);
+    ? `Pending Count (${formatGroupLabel(groupBy)})`
+    : `Time Delay (${formatGroupLabel(groupBy)})`;
+  const shouldShowEveryTimeTick = isTimeBasedGroup(groupBy);
+  const dashboardDateRange = getDateRangeForHours(DEFAULT_TIME_RANGE_HOURS);
+  const availableGroupByOptions = getAvailableGroupByOptions(
+    dashboardDateRange.fromDateTime,
+    dashboardDateRange.toDateTime
+  );
+  const hasScrollableFiveMinuteChart = groupBy === "FIVE_MINUTES";
+  const chartWidth = Math.max(900, trendData.length * 86);
 
   return (
     <div className="content">
@@ -372,46 +460,81 @@ const Dashboard = () => {
 
         <div className="status-card">
           <h3>Last Email</h3>
-          <p>{lastEmail?.sent ? `Sent: ${lastEmail.time}` : "Not Sent"}</p>
+          <p>{formatLastEmailTime(lastEmailTime)}</p>
         </div>
       </div>
 
       {/* Charts */}
       <div className="chart-section">
         <div className="chart-card dashboard-trend-card">
-          <h3>{chartTitle}</h3>
+          <div className="dashboard-trend-header">
+            <h3>{chartTitle}</h3>
+            <label className="dashboard-group-by-filter">
+              Group By
+              <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
+                {availableGroupByOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {formatGroupLabel(option)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           {trendLoading ? (
             <p className="dashboard-trend-status">Loading trend data...</p>
           ) : trendError ? (
             <p className="dashboard-trend-status error">{trendError}</p>
           ) : trendData.length ? (
-            <ResponsiveContainer width="100%" height={360}>
-              <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="label"
-                  interval={shouldShowEveryTimeTick ? 0 : "preserveStartEnd"}
-                  angle={shouldShowEveryTimeTick ? -35 : 0}
-                  textAnchor={shouldShowEveryTimeTick ? "end" : "middle"}
-                  height={shouldShowEveryTimeTick ? 72 : 30}
-                  minTickGap={shouldShowEveryTimeTick ? 0 : 24}
-                />
-                <YAxis allowDecimals={false} />
-                <Tooltip
-                  labelFormatter={(_, payload) =>
-                    payload?.[0]?.payload?.tooltipLabel || ""
-                  }
-                />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  name={isQueueDashboard ? "Pending count" : "Time delay"}
-                  stroke="#2B81BF"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <div
+              className={`dashboard-chart-scroll${
+                hasScrollableFiveMinuteChart ? " is-scrollable" : ""
+              }`}
+            >
+              <div
+                className="dashboard-chart-canvas"
+                style={
+                  hasScrollableFiveMinuteChart
+                    ? { width: `${chartWidth}px` }
+                    : undefined
+                }
+              >
+                <ResponsiveContainer width="100%" height={360}>
+                  <LineChart data={trendData} margin={{ top: 24, right: 16 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="label"
+                      interval={shouldShowEveryTimeTick ? 0 : "preserveStartEnd"}
+                      angle={shouldShowEveryTimeTick ? -35 : 0}
+                      textAnchor={shouldShowEveryTimeTick ? "end" : "middle"}
+                      height={shouldShowEveryTimeTick ? 72 : 30}
+                      minTickGap={shouldShowEveryTimeTick ? 0 : 24}
+                    />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip
+                      labelFormatter={(_, payload) =>
+                        payload?.[0]?.payload?.tooltipLabel || ""
+                      }
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      name={isQueueDashboard ? "Pending count" : "Time delay"}
+                      stroke="#2B81BF"
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                    >
+                      <LabelList
+                        dataKey="value"
+                        position="top"
+                        offset={8}
+                        fill="#1f2937"
+                        fontSize={12}
+                      />
+                    </Line>
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           ) : (
             <p className="dashboard-trend-status">
               No trend data available.

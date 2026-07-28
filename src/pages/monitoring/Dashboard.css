@@ -59,6 +59,54 @@
   .dashboard-trend-card {
     min-height: 410px;
   }
+
+  .dashboard-trend-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .dashboard-trend-header h3 {
+    margin-bottom: 0;
+  }
+
+  .dashboard-group-by-filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #374151;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+.dashboard-group-by-filter select {
+  height: 36px;
+    padding: 0 10px;
+    border: 1px solid #cfd6de;
+    border-radius: 7px;
+    background: #fff;
+    color: #1f2937;
+  font: inherit;
+}
+
+.dashboard-chart-scroll {
+  width: 100%;
+}
+
+.dashboard-chart-scroll.is-scrollable {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 8px;
+  scrollbar-gutter: stable;
+}
+
+.dashboard-chart-canvas {
+  width: 100%;
+  min-width: 0;
+}
   
   /* .actions-section {
     padding: 20px;
