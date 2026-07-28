@@ -9,6 +9,7 @@ export default function Server({
   bgColor,
   inbound = [],
   queue = [],
+  emptyQueueMessage = "",
   queueWarningLimit = 100,
   serviceDelayLimit = 100,
   supportIssues = [],
@@ -76,30 +77,6 @@ export default function Server({
 
     return trend ? { direction: trend, color } : null;
   };
-
-  // const getQueueTrend = (trendKey, currentCount, limit) => {
-  //   const count = Number(String(currentCount).replace(/[^\d]/g, "")) || 0;
-
-  //   // Only track RED queues
-  //   if (count <= limit) return null;
-
-  //   const trends = getQueueTrends();
-  //   const prev = trends[trendKey]?.lastCount;
-
-  //   let trend = null;
-  //   if (prev !== undefined) {
-  //     if (count > prev) trend = "up";
-  //     else if (count < prev) trend = "down";
-  //   }
-
-  //   trends[trendKey] = {
-  //     lastCount: count,
-  //     updatedAt: Date.now(),
-  //   };
-
-  //   setQueueTrends(trends);
-  //   return trend;
-  // };
 
   const getPendingCount = (value) =>
     Number(String(value ?? "").replace(/[^\d]/g, "")) || 0;
@@ -208,6 +185,7 @@ export default function Server({
         queues={queues}
         endpoints={endpoints}
         noQueues={hasBackendNoPending}
+        emptyQueueMessage={emptyQueueMessage}
         noPendingServices={hasBackendNoPendingServices}
         lastUpdated={lastUpdated}
         lastUpdatedText={lastUpdatedText}

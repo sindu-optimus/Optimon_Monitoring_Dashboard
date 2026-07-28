@@ -49,11 +49,20 @@
   border: 1px solid #333;
 }
 
+.server-disabled {
+  background-color: #fff;
+}
+
+.server-disabled:hover {
+  border: 1px solid #333;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
 .server-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 4px;
+  /* padding-top: 4px; */
 }
 
 .server-head {
@@ -77,6 +86,18 @@
 .server-last-updated {
   font-size: 14px;
   font-weight: 700;
+}
+
+.trust-status-badge {
+  padding: 2px 8px;
+  border: 1px solid #e74c3c;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #4b5563;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
 }
 
 /*  PULSE ICON   */
@@ -121,6 +142,14 @@
   color: #e74c3c;
 }
 
+.pulse-icon.disabled {
+  color: #9ca3af;
+}
+
+.pulse-icon.disabled .pulse-ring {
+  display: none;
+}
+
 @keyframes pulse-ring {
   0% {
     r: 4;
@@ -138,6 +167,7 @@
 .endpoint, .queue {
   padding: 8px 0;
   font-size: 14px;
+  flex-shrink: 0;
 }
 
 .endpoint {
@@ -148,9 +178,17 @@
 .queue-section,
 .endpoint-section {
   position: relative;
-  height: 32vh;
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+.server-table {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .queue-content table,
@@ -438,6 +476,28 @@
 .cardEmptyState span {
   font-size: 13px;
   color: #666;
+}
+
+.cardEmptyState-disabled {
+  padding: 20px;
+  background: #f7f7f8;
+  border-color: #cfd4dc;
+  box-shadow: none;
+}
+
+.cardEmptyState-disabled i {
+  color: #94a3b8;
+  font-size: 28px;
+}
+
+.cardEmptyState-disabled p {
+  color: #334155;
+}
+
+.cardEmptyState-disabled span {
+  max-width: 300px;
+  color: #94a3b8;
+  line-height: 1.45;
 }
 
 .noDataText {

@@ -39,6 +39,7 @@ const GROUP_OPTIONS = [
   "MONTHLY",
   "THIRTY_MINUTES",
 ];
+
 const TIME_OPTIONS = [
   { label: "Last 6 hours", value: 6 },
   { label: "Last 12 hours", value: 12 },
@@ -861,11 +862,11 @@ export default function InterfaceStats({ userProfile = null }) {
       : []
   );
   const [interfaceLoading, setInterfaceLoading] = useState(false);
-  const [groupBy, setGroupBy] = useState("FIVE_MINUTES");
+  const [groupBy, setGroupBy] = useState("HOURLY");
   const [timeRangeHours, setTimeRangeHours] = useState(24);
   const [fromDateTime, setFromDateTime] = useState(defaultDates.fromDateTime);
   const [toDateTime, setToDateTime] = useState(defaultDates.toDateTime);
-  const [activeGroupBy, setActiveGroupBy] = useState("FIVE_MINUTES");
+  const [activeGroupBy, setActiveGroupBy] = useState("HOURLY");
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -1149,7 +1150,7 @@ export default function InterfaceStats({ userProfile = null }) {
   }, [interfaceOptions, interfaceType, serviceName]);
 
   useEffect(() => {
-    const defaultGroupBy = "FIVE_MINUTES";
+    const defaultGroupBy = "HOURLY";
     const nextDefaultDates = getDateRangeForHours(24);
 
     setServiceName(routeServiceName);
@@ -1216,6 +1217,8 @@ export default function InterfaceStats({ userProfile = null }) {
   const metricUnitLabel = isOutboundSelected ? "" : "Idle Time (in mins)";
   const yAxisLabel = isOutboundSelected ? "Pending Count" : "Time Delay";
   const shouldShowEveryTimeTick = isTimeBasedGroup(activeGroupBy);
+  const hasScrollableFiveMinuteChart = activeGroupBy === "FIVE_MINUTES";
+  const chartWidth = Math.max(900, chartData.length * 86);
   const handleDownloadPdf = async () => {
     const reportElement = pdfReportRef.current;
 
@@ -1402,37 +1405,60 @@ export default function InterfaceStats({ userProfile = null }) {
         ) : error ? (
           <p className="interface-stats-status error">{error}</p>
         ) : chartData.length ? (
-          <ResponsiveContainer width="100%" height={360}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="label"
-                interval={shouldShowEveryTimeTick ? 0 : "preserveStartEnd"}
-                angle={shouldShowEveryTimeTick ? -35 : 0}
-                textAnchor={shouldShowEveryTimeTick ? "end" : "middle"}
-                height={shouldShowEveryTimeTick ? 72 : 30}
-                minTickGap={shouldShowEveryTimeTick ? 0 : 24}
-              />
-              <YAxis allowDecimals={false} />
-              <Tooltip
-                labelFormatter={(_, payload) =>
-                  payload?.[0]?.payload?.tooltipLabel || ""
-                }
-              />
-              <Line
-                type="monotone"
-                dataKey="value"
-                name={
-                  isOutboundSelected
-                    ? "Pending count"
-                    : "Time delay"
-                }
-                stroke="#2B81BF"
-                strokeWidth={2}
-                dot={{ r: 3 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <div
+            className={`interface-stats-chart-scroll${
+              hasScrollableFiveMinuteChart ? " is-scrollable" : ""
+            }`}
+          >
+            <div
+              className="interface-stats-chart-canvas"
+              style={
+                hasScrollableFiveMinuteChart
+                  ? { width: `${chartWidth}px` }
+                  : undefined
+              }
+            >
+              <ResponsiveContainer width="100%" height={360}>
+                <LineChart data={chartData} margin={{ top: 24, right: 16 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="label"
+                    interval={shouldShowEveryTimeTick ? 0 : "preserveStartEnd"}
+                    angle={shouldShowEveryTimeTick ? -35 : 0}
+                    textAnchor={shouldShowEveryTimeTick ? "end" : "middle"}
+                    height={shouldShowEveryTimeTick ? 72 : 30}
+                    minTickGap={shouldShowEveryTimeTick ? 0 : 24}
+                  />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip
+                    labelFormatter={(_, payload) =>
+                      payload?.[0]?.payload?.tooltipLabel || ""
+                    }
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    name={
+                      isOutboundSelected
+                        ? "Pending count"
+                        : "Time delay"
+                    }
+                    stroke="#2B81BF"
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                  >
+                    <LabelList
+                      dataKey="value"
+                      position="top"
+                      offset={8}
+                      fill="#1f2937"
+                      fontSize={12}
+                    />
+                  </Line>
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         ) : (
           <p className="interface-stats-status">No stats data available.</p>
         )}

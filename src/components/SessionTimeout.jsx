@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+const IDLE_TIMEOUT_MS = 3 * 60 * 60 * 1000;
 const IDLE_LOGOUT_WARNING_SECONDS = 30;
 const TOKEN_EXPIRY_WARNING_SECONDS = 10;
 
@@ -8,10 +8,13 @@ const SessionTimeout = ({
   isLoggedIn,
   accessTokenExpiresAt,
   onLogout,
+  onRefreshToken,
 }) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [countdown, setCountdown] = useState(0);
-  const [reason, setReason] = useState("idle");
+  const [isIdleWarningOpen, setIsIdleWarningOpen] = useState(false);
+  const [isTokenWarningOpen, setIsTokenWarningOpen] = useState(false);
+  const [idleCountdown, setIdleCountdown] = useState(0);
+  const [tokenCountdown, setTokenCountdown] = useState(0);
+  const [isRefreshingToken, setIsRefreshingToken] = useState(false);
   const hasStartedLogoutRef = useRef(false);
 
   const logout = useCallback(() => {
@@ -20,14 +23,40 @@ const SessionTimeout = ({
     }
 
     hasStartedLogoutRef.current = true;
-    setIsModalOpen(false);
+    setIsIdleWarningOpen(false);
+    setIsTokenWarningOpen(false);
     onLogout();
   }, [onLogout]);
 
-  const showTimeoutWarning = (timeoutReason, seconds) => {
-    setReason(timeoutReason);
-    setCountdown(seconds);
-    setIsModalOpen(true);
+  const showIdleWarning = useCallback(() => {
+    setIdleCountdown(IDLE_LOGOUT_WARNING_SECONDS);
+    setIsIdleWarningOpen(true);
+  }, []);
+
+  const showTokenWarning = useCallback(() => {
+    setTokenCountdown(TOKEN_EXPIRY_WARNING_SECONDS);
+    setIsTokenWarningOpen(true);
+  }, []);
+
+  const handleIdleContinue = useCallback(() => {
+    setIsIdleWarningOpen(false);
+    setIdleCountdown(0);
+  }, []);
+
+  const handleTokenContinue = async () => {
+    if (!onRefreshToken || isRefreshingToken) return;
+
+    try {
+      setIsRefreshingToken(true);
+      await onRefreshToken();
+      setIsTokenWarningOpen(false);
+      setTokenCountdown(0);
+    } catch {
+      // A failed refresh means this token cannot safely be extended.
+      logout();
+    } finally {
+      setIsRefreshingToken(false);
+    }
   };
 
   useEffect(() => {
@@ -36,13 +65,13 @@ const SessionTimeout = ({
       return;
     }
 
-    if (isModalOpen) return;
+    if (isIdleWarningOpen) return;
 
     let idleTimer;
     const resetIdleTimer = () => {
       clearTimeout(idleTimer);
       idleTimer = setTimeout(
-        () => showTimeoutWarning("idle", IDLE_LOGOUT_WARNING_SECONDS),
+        showIdleWarning,
         IDLE_TIMEOUT_MS
       );
     };
@@ -65,10 +94,11 @@ const SessionTimeout = ({
         window.removeEventListener(eventName, resetIdleTimer)
       );
     };
-  }, [isLoggedIn, isModalOpen]);
+  }, [isLoggedIn, isIdleWarningOpen, showIdleWarning]);
 
   useEffect(() => {
     if (!isLoggedIn || !accessTokenExpiresAt) return;
+    if (isTokenWarningOpen) return;
 
     const expiresInMs = accessTokenExpiresAt - Date.now();
 
@@ -84,61 +114,76 @@ const SessionTimeout = ({
       0
     );
     const timer = setTimeout(
-      () => showTimeoutWarning("token", TOKEN_EXPIRY_WARNING_SECONDS),
+      showTokenWarning,
       warningDelay
     );
 
     return () => clearTimeout(timer);
-  }, [accessTokenExpiresAt, isLoggedIn, logout]);
+  }, [
+    accessTokenExpiresAt,
+    isLoggedIn,
+    isTokenWarningOpen,
+    logout,
+    showTokenWarning,
+  ]);
 
   useEffect(() => {
-    if (!isModalOpen) return;
-    if (countdown <= 0) {
+    if (!isIdleWarningOpen) return;
+    if (idleCountdown <= 0) {
       logout();
       return;
     }
 
-    const timer = setTimeout(() => setCountdown((value) => value - 1), 1000);
+    const timer = setTimeout(
+      () => setIdleCountdown((value) => value - 1),
+      1000
+    );
     return () => clearTimeout(timer);
-  }, [countdown, isModalOpen, logout]);
+  }, [idleCountdown, isIdleWarningOpen, logout]);
 
-  const handleContinue = () => logout();
+  useEffect(() => {
+    if (!isTokenWarningOpen) return;
+    if (tokenCountdown <= 0) {
+      logout();
+      return;
+    }
 
-  if (!isModalOpen) return null;
+    const timer = setTimeout(
+      () => setTokenCountdown((value) => value - 1),
+      1000
+    );
+    return () => clearTimeout(timer);
+  }, [tokenCountdown, isTokenWarningOpen, logout]);
+
+  if (!isIdleWarningOpen && !isTokenWarningOpen) return null;
 
   return (
-    <div
-      className="session-expiry-modal-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="session-expiry-title"
-    >
-      <div className="session-expiry-modal">
-        <h3 id="session-expiry-title">Session ending soon</h3>
-        <p>
-          {reason === "idle"
-            ? "You have been inactive for 10 minutes."
-            : "Your access token is about to expire."}{" "}
-          You will be logged out in {countdown} sec.
-        </p>
-        <div className="session-expiry-actions">
-          <button
-            type="button"
-            className="session-expiry-btn session-expiry-btn-secondary"
-            onClick={logout}
-          >
-            Logout
-          </button>
-          <button
-            type="button"
-            className="session-expiry-btn session-expiry-btn-primary"
-            onClick={handleContinue}
-          >
-            Continue to login
-          </button>
+    <>
+      {isIdleWarningOpen && (
+        <div className="session-expiry-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="idle-session-expiry-title">
+          <div className="session-expiry-modal">
+            <h3 id="idle-session-expiry-title">Session ending soon</h3>
+            <p>You have been inactive for 10 minutes. You will be logged out in {idleCountdown} seconds.</p>
+            <div className="session-expiry-actions">
+              <button type="button" className="session-expiry-btn session-expiry-btn-secondary" onClick={logout}>Logout</button>
+              <button type="button" className="session-expiry-btn session-expiry-btn-primary" onClick={handleIdleContinue}>Continue</button>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+      {isTokenWarningOpen && (
+        <div className="session-expiry-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="token-session-expiry-title">
+          <div className="session-expiry-modal">
+            <h3 id="token-session-expiry-title">Session ending soon</h3>
+            <p>Your session is about to expire. You will be logged out in {tokenCountdown} seconds.</p>
+            <div className="session-expiry-actions">
+              <button type="button" className="session-expiry-btn session-expiry-btn-secondary" onClick={logout} disabled={isRefreshingToken}>Logout</button>
+              <button type="button" className="session-expiry-btn session-expiry-btn-primary" onClick={handleTokenContinue} disabled={isRefreshingToken}>{isRefreshingToken ? "Continuing..." : "Continue"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

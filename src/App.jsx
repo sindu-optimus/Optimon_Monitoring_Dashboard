@@ -33,9 +33,10 @@ import SendMail from "./pages/shared/SendMail";
 import FAQ from "./pages/shared/FAQ";
 import InterfaceStats from "./pages/shared/InterfaceStats";
 import { getTrustMeta } from "./utils/trustData";
-import { filterTrustsByAccess } from "./utils/trustAccess";
+import { filterTrustsByUserAccess } from "./utils/trustAccess";
 import { getMetricDetails } from "./api/metricsService";
 import { getTrusts } from "./api/trustService";
+import { refreshAuthToken } from "./api/loginService";
 
 import "./App.css";
 
@@ -133,10 +134,12 @@ export default function App() {
     });
   }
 
-  async function fetchTrustMetrics(trustId) {
+  async function fetchTrustMetrics(trustId, trustName = "") {
     try {
       const data = await getMetricDetails(trustId);
-      return data?.inboundDetails || data?.queueDetails ? data : null;
+      return data?.inboundDetails || data?.queueDetails
+        ? { ...data, trustId, trustName }
+        : null;
     } catch {
       return null;
     }
@@ -146,7 +149,7 @@ export default function App() {
     try {
       setTrustListLoaded(false);
       const res = await getTrusts();
-      const trusts = filterTrustsByAccess(res.data || [], loggedInUser)
+      const trusts = filterTrustsByUserAccess(res.data || [], loggedInUser)
         .map((trust) => {
           const trustId = Number(trust?.id);
 
@@ -172,7 +175,10 @@ export default function App() {
   }
 
   function getTokenExpiryTime(userData) {
-    const expiry = userData?.tokenExpiresAt || localStorage.getItem("tokenExpiresAt");
+    const expiry =
+      userData?.tokenExpiresAt ||
+      userData?.accessTokenExpiresAt ||
+      localStorage.getItem("tokenExpiresAt");
     const expiryTime = expiry ? new Date(expiry).getTime() : NaN;
 
     if (Number.isFinite(expiryTime)) {
@@ -246,11 +252,40 @@ export default function App() {
     }
   }
 
+  function resolveTokenExpiry(userData) {
+    const expiry = userData?.tokenExpiresAt || userData?.accessTokenExpiresAt;
+
+    if (expiry) {
+      return {
+        ...userData,
+        tokenExpiresAt: expiry,
+      };
+    }
+
+    const expiresInSeconds = Number(
+      userData?.tokenExpiresInSeconds ?? userData?.expiresInSeconds
+    );
+
+    if (Number.isFinite(expiresInSeconds) && expiresInSeconds > 0) {
+      return {
+        ...userData,
+        tokenExpiresAt: new Date(
+          Date.now() + expiresInSeconds * 1000
+        ).toISOString(),
+      };
+    }
+
+    return userData;
+  }
+
   /* ===================== PROGRESSIVE FETCH ===================== */
   async function fetchTrustsProgressively(ids, append = false) {
     await Promise.all(
       ids.map(async (id) => {
-      const data = await fetchTrustMetrics(id);
+      const trustName = trustList.find(
+        (trust) => Number(trust.trustId) === Number(id)
+      )?.trustName;
+      const data = await fetchTrustMetrics(id, trustName);
       if (!data) return;
 
       setAllTrustData((prev) => {
@@ -444,7 +479,8 @@ export default function App() {
 
   /* ===================== LOGIN ===================== */
   const handleLogin = (userData, password = "") => {
-    const uname = userData?.username || "";
+    const sessionUser = resolveTokenExpiry(userData || {});
+    const uname = sessionUser?.username || "";
 
     console.group("[App] Login session");
     console.log("Login details:", {
@@ -456,17 +492,43 @@ export default function App() {
 
     setIsLoggedIn(true);
     setUsername(uname);
-    setLoggedInUser(userData || null);
+    setLoggedInUser(sessionUser);
     setSessionPassword(password);
     localStorage.setItem("isLoggedIn", "true");
     localStorage.setItem("username", uname);
-    localStorage.setItem("loggedInUser", JSON.stringify(userData || null));
-    persistSessionTokens(userData || {});
-    if (!userData?.token) {
+    localStorage.setItem("loggedInUser", JSON.stringify(sessionUser));
+    persistSessionTokens(sessionUser);
+    if (!sessionUser?.token) {
       localStorage.removeItem("token");
     }
     sessionStorage.setItem("sessionPassword", password);
     navigate("/action");
+  };
+
+  const handleRefreshToken = async () => {
+    const refreshToken =
+      loggedInUser?.refreshToken || localStorage.getItem("refreshToken");
+
+    if (!refreshToken) {
+      throw new Error("No refresh token is available");
+    }
+
+    const response = await refreshAuthToken(refreshToken);
+    const refreshData = response?.data?.data || response?.data || {};
+    const sessionUser = resolveTokenExpiry({
+      ...loggedInUser,
+      ...refreshData,
+      token: refreshData.token || refreshData.accessToken || loggedInUser?.token,
+      refreshToken: refreshData.refreshToken || refreshToken,
+    });
+
+    if (!sessionUser.token || !getTokenExpiryTime(sessionUser)) {
+      throw new Error("The refresh response did not include a usable access token");
+    }
+
+    setLoggedInUser(sessionUser);
+    localStorage.setItem("loggedInUser", JSON.stringify(sessionUser));
+    persistSessionTokens(sessionUser);
   };
 
   const handleLogout = () => {
@@ -574,7 +636,10 @@ export default function App() {
               />
             }
           />
-          <Route path="send-email" element={<SendMail />} />
+          <Route
+            path="send-email"
+            element={<SendMail userProfile={loggedInUser} />}
+          />
           <Route path="faqs" element={<FAQ />} />
           <Route
             path="profile"
@@ -660,7 +725,10 @@ export default function App() {
             path="interface-stats"
             element={<InterfaceStats userProfile={loggedInUser} />}
           />
-          <Route path="send-email" element={<SendMail />} />
+          <Route
+            path="send-email"
+            element={<SendMail userProfile={loggedInUser} />}
+          />
           <Route path="faqs" element={<FAQ />} />
           <Route
             path="add-users"
@@ -711,6 +779,7 @@ export default function App() {
         isLoggedIn={isLoggedIn}
         accessTokenExpiresAt={getTokenExpiryTime(loggedInUser)}
         onLogout={handleLogout}
+        onRefreshToken={handleRefreshToken}
       />
     </div>
   );

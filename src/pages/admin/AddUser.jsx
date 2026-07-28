@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import * as XLSX from "xlsx";
 import SignUpForm from "../../components/SignUpForm";
+import SearchBar from "../../components/SearchBar";
 import { getUsers, deleteUser } from "../../api/userService";
 import { getTrusts } from "../../api/trustService";
-import { filterTrustsByAccess } from "../../utils/trustAccess";
 import "./AddUser.css";
 
 export default function AddUser({ userProfile = null }) {
@@ -14,6 +14,7 @@ export default function AddUser({ userProfile = null }) {
   const [trustOptions, setTrustOptions] = useState([]);
   const [selectedTrusts, setSelectedTrusts] = useState([]);
   const [isTrustDropdownOpen, setIsTrustDropdownOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
   const trustDropdownRef = useRef(null);
 
   const ROLE_LABELS = {
@@ -36,7 +37,7 @@ export default function AddUser({ userProfile = null }) {
         if (!isActive) return;
 
         setTrustOptions(
-          filterTrustsByAccess(res.data || [], userProfile).map((trust) => ({
+          (res.data || []).map((trust) => ({
             id: trust.id,
             label: trust.name,
           }))
@@ -163,16 +164,28 @@ export default function AddUser({ userProfile = null }) {
   };
 
   const filteredUsers = useMemo(() => {
-    if (selectedTrustLabels.length === 0) {
-      return users;
-    }
-
+    const searchText = searchValue.trim().toLowerCase();
     const selectedSet = new Set(selectedTrustLabels);
 
-    return users.filter((user) =>
-      (user?.trusts || []).some((trust) => selectedSet.has(trust?.name))
-    );
-  }, [selectedTrustLabels, users]);
+    return users.filter((user) => {
+      const trustMatches =
+        selectedTrustLabels.length === 0 ||
+        (user?.trusts || []).some((trust) => selectedSet.has(trust?.name));
+      const searchableText = [
+        user?.firstName,
+        user?.lastName,
+        user?.email,
+        user?.username,
+        user?.mobile ?? user?.phone,
+        getRoleLabel(user),
+        getTrustNames(user),
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return trustMatches && (!searchText || searchableText.includes(searchText));
+    });
+  }, [searchValue, selectedTrustLabels, users]);
 
   const downloadExcelFile = () => {
     if (!filteredUsers.length) return;
@@ -272,6 +285,14 @@ export default function AddUser({ userProfile = null }) {
             )}
           </div>
         </div>
+
+        <SearchBar
+          className="users-filter-group"
+          label="Search"
+          value={searchValue}
+          onChange={setSearchValue}
+          placeholder="Search users..."
+        />
 
         <div className="users-actions">
           <button

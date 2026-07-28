@@ -1,9 +1,7 @@
 import axiosInstance from "./axiosInstance";
 
-const CRITICAL_INTERFACES_API_BASE =
-  "http://18.168.87.76:8085/api/critical-interfaces";
-const CRITICAL_INBOUND_RECEIVERS_API_BASE =
-  "http://18.168.87.76:8085/api/critical-inbound-receivers";
+const CRITICAL_INTERFACES_API_BASE = "/critical-interfaces";
+const CRITICAL_INBOUND_RECEIVERS_API_BASE = "/critical-inbound-receivers";
 
 const isInboundInterface = (interfaceType) =>
   String(interfaceType).toUpperCase() === "INBOUND";

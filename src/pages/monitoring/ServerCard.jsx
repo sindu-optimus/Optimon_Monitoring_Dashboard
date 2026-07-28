@@ -4,12 +4,23 @@ import trendUpImg from "../../assets/trend-up.gif";
 import trendDownImg from "../../assets/trend-down.gif";
 import "./ServerCard.css";
 
+function DisabledState({ direction }) {
+  return (
+    <div className="cardEmptyState cardEmptyState-disabled">
+      <i className="ri-forbid-2-line" aria-hidden="true"></i>
+      <p>Trust is Disabled</p>
+      <span>{direction} monitoring is unavailable.</span>
+    </div>
+  );
+}
+
 export default function ServerCard({
-  trustId,
+  trustId, 
   serverName,
   queues = [],
   endpoints = [],
   noQueues = false,
+  emptyQueueMessage = "",
   noPendingServices = false,
   bgColor = "#fff",
   lastUpdated = null,
@@ -56,6 +67,8 @@ export default function ServerCard({
       return name.includes("no service available");
     });
   }, [endpoints]);
+
+  const isTrustDisabled = Boolean(emptyQueueMessage);
 
   /* ================= STATUS ================= */
 
@@ -315,7 +328,7 @@ export default function ServerCard({
   /* ================= RENDER ================= */
 
   return (
-    <div className="server">
+    <div className={`server${isTrustDisabled ? " server-disabled" : ""}`}>
       {/* ================= HEADER ================= */}
       <div className="server-card">
         <div className="server-header">
@@ -329,7 +342,11 @@ export default function ServerCard({
             )}
           </div>
 
-          <span className={`pulse-icon ${showStatus ? "danger" : "ok"}`}>
+          <span
+            className={`pulse-icon ${
+              isTrustDisabled ? "disabled" : showStatus ? "danger" : "ok"
+            }`}
+          >
             <svg viewBox="0 0 24 24">
               <circle className="pulse-core" cx="12" cy="12" r="4" />
               <circle className="pulse-ring" cx="12" cy="12" r="4" />
@@ -348,7 +365,9 @@ export default function ServerCard({
         <div className="queue-section">
 
           {/* BACKEND: NO PENDING */}
-          {noQueues || hasBackendNoPending ? (
+          {isTrustDisabled ? (
+            <DisabledState direction="Outbound" />
+          ) : noQueues || hasBackendNoPending ? (
             <div className="cardEmptyState">
               <i className="ri-checkbox-circle-fill"></i>
 
@@ -471,7 +490,9 @@ export default function ServerCard({
           ) : (
 
             /* API / DATA ISSUE */
-            <p className="noDataText">No queues available</p>
+            <p className="noDataText">
+              {emptyQueueMessage || "No queues available"}
+            </p>
 
           )}
         </div>
@@ -480,7 +501,9 @@ export default function ServerCard({
         <h4 className="endpoint">Endpoints Status</h4>
 
         <div className="endpoint-section">
-          {noPendingServices || hasBackendNoServices ? (
+          {isTrustDisabled ? (
+            <DisabledState direction="Inbound" />
+          ) : noPendingServices || hasBackendNoServices ? (
             <div className="cardEmptyState">
               <i className="ri-checkbox-circle-fill"></i>
 

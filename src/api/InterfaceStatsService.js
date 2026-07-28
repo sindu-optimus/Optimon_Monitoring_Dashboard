@@ -1,6 +1,5 @@
 import axiosInstance from "./axiosInstance";
 
-const INTERFACE_STATS_API_BASE = "http://18.168.87.76:8085";
 export const SERVICE_TREND_METRIC = "maxTimeDelay";
 export const QUEUE_TREND_METRIC = "maxPendingQueueCount";
 
@@ -38,7 +37,7 @@ export const getServiceGraphData = async ({
   });
 
   const response = await axiosInstance.get(
-    `${INTERFACE_STATS_API_BASE}/api/inbound-metrics/service-graph?${searchParams.toString()}`
+    `/inbound-metrics/service-graph?${searchParams.toString()}`
   );
 
   if (response.status < 200 || response.status >= 300) {
@@ -66,7 +65,7 @@ export const getQueueGraphData = async ({
   });
 
   const response = await axiosInstance.get(
-    `${INTERFACE_STATS_API_BASE}/api/queue-metrics/queue-graph?${searchParams.toString()}`
+    `/queue-metrics/queue-graph?${searchParams.toString()}`
   );
 
   if (response.status < 200 || response.status >= 300) {

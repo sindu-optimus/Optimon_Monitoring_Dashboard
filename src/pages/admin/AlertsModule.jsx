@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import SearchBar from "../../components/SearchBar";
 import * as XLSX from "xlsx";
 import AlertsModuleForm from "../../components/AlertsModuleForm";
 import {
@@ -869,33 +870,16 @@ export default function AlertsModule({
       </div>
 
       <div className="critical-toolbar">
-        <div className="critical-filter-group critical-search-group">
-          <label className="critical-label" htmlFor="critical-search">
-            Search
-          </label>
-
-          <div className="critical-search-field">
-            <i className="ri-search-line" aria-hidden="true"></i>
-            <input
-              id="critical-search"
-              type="text"
-              className="critical-search-input"
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder="Search here..."
-            />
-            {searchValue && (
-              <button
-                type="button"
-                className="critical-search-clear"
-                onClick={() => setSearchValue("")}
-                aria-label="Clear search"
-              >
-                <i className="ri-close-line" aria-hidden="true"></i>
-              </button>
-            )}
-          </div>
-        </div>
+        <SearchBar
+          className="critical-filter-group critical-search-group"
+          fieldClassName="critical-search-field"
+          inputClassName="critical-search-input"
+          id="critical-search"
+          label="Search"
+          labelClassName="critical-label"
+          value={searchValue}
+          onChange={setSearchValue}
+        />
         
         <div className="critical-filter-group">
           <label className="critical-label" htmlFor="critical-trust-select">

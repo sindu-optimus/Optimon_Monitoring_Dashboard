@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import SearchBar from "../../components/SearchBar";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import * as XLSX from "xlsx";
 import AddActions from "../../components/AddActions";
@@ -704,9 +705,6 @@ const SupportActions = ({ isAdminUser = false, userProfile = null }) => {
     }
   };
 
-  const handleSearchChange = (e) =>
-    setSearchTerm(e.target.value.toLowerCase());
-
   const handleApplyFilters = () => {
     const { error: nextFilterError, appliedToDate: nextAppliedToDate } =
       validateDateFilters({ fromDate, toDate, todayDateValue });
@@ -868,7 +866,16 @@ const SupportActions = ({ isAdminUser = false, userProfile = null }) => {
     ]
   );
 
-  const filteredData = qaData.sort(sortActiveNewestFirst);
+  // Search is a client-side filter because the support-actions API does not
+  // accept a search term.  The request filters (trust, status, date) are
+  // already applied by the API before this list is received.
+  const filteredData = qaData
+    .filter(
+      (item) =>
+        !appliedSearchTerm ||
+        buildSearchText(item).includes(appliedSearchTerm)
+    )
+    .sort(sortActiveNewestFirst);
 
   const canGoPrevious = !loading && currentPage > 0;
   const canGoNext =
@@ -1132,18 +1139,12 @@ const SupportActions = ({ isAdminUser = false, userProfile = null }) => {
       </div>
 
       <div className="filterWrapper">
-        <div className="inputField filterBlock searchBlock">
-          <i className="ri-search-line"></i>
-          <input
-            type="text"
-            placeholder="Search here..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-          />
-          {searchTerm && (
-            <i className="ri-close-line" onClick={clearSearch}></i>
-          )}
-        </div>
+        <SearchBar
+          className="filterBlock searchBlock"
+          value={searchTerm}
+          onChange={(value) => setSearchTerm(value.toLowerCase())}
+          onClear={clearSearch}
+        />
 
         <div className="trustFilter filterBlock">
           <label className="formLabel filterLabel">

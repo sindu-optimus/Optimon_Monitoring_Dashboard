@@ -298,6 +298,22 @@
   margin: 0;
 }
 
+.interface-stats-chart-scroll {
+  width: 100%;
+}
+
+.interface-stats-chart-scroll.is-scrollable {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 8px;
+  scrollbar-gutter: stable;
+}
+
+.interface-stats-chart-canvas {
+  width: 100%;
+  min-width: 0;
+}
+
 .interface-stats-download {
   display: inline-flex;
   align-items: center;

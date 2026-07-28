@@ -1,10 +1,24 @@
+.trust-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.trust-search {
+  flex: 1 1 280px;
+  max-width: 420px;
+}
+
 .trustForm-actions {
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  margin-top: 20px;
+  margin-top: 0;
 }
 
 .download-trust-btn {

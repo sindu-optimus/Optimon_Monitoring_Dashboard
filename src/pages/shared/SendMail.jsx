@@ -11,12 +11,14 @@ import {
   faCircleInfo,
 } from "@fortawesome/free-solid-svg-icons";
 import { getTrusts } from "../../api/trustService";
+import { filterTrustsByAccess } from "../../utils/trustAccess";
 import {
   createCriticalInterface,
   getCriticalInboundReceivers,
   getCriticalInterfaces,
 } from "../../api/criticalInterfacesService";
 import { getSupportContactsByDirection } from "../../api/supportContactsService";
+import { getTrustBauRecipients } from "../../api/trustBauService";
 
 import "./SendMail.css";
 
@@ -192,11 +194,10 @@ const namesMatch = (left, right) =>
   String(left ?? "").trim().toLowerCase() ===
   String(right ?? "").trim().toLowerCase();
 
-const SendMail = () => {
+const SendMail = ({ userProfile = null }) => {
   const location = useLocation();
   const editorRef = useRef(null);
   const toInputRef = useRef(null);
-  const ccInputRef = useRef(null);
   const interfaceInputRef = useRef(null);
   const phoneTooltipRef = useRef(null);
   const customInterfaceSaveKeyRef = useRef("");
@@ -210,7 +211,6 @@ const SendMail = () => {
 
   const [toInputValue, setToInputValue] = useState("");
   const [ccInputValue, setCcInputValue] = useState("");
-  const [showCcDropdown, setShowCcDropdown] = useState(false);
   const [trustOptions, setTrustOptions] = useState([]);
   const [selectedTrustId, setSelectedTrustId] = useState("");
   const [selectedType, setSelectedType] = useState("");
@@ -223,6 +223,8 @@ const SendMail = () => {
   const [supportContactLoading, setSupportContactLoading] = useState(false);
   const [supportContactError, setSupportContactError] = useState("");
   const [supportPhoneNumbers, setSupportPhoneNumbers] = useState([]);
+  const [ccRecipientLoading, setCcRecipientLoading] = useState(false);
+  const [ccRecipientError, setCcRecipientError] = useState("");
   const [customInterfaceSaving, setCustomInterfaceSaving] = useState(false);
   const [showCreateInterfaceDialog, setShowCreateInterfaceDialog] =
     useState(false);
@@ -261,14 +263,14 @@ const SendMail = () => {
     const fetchLookupData = async () => {
       try {
         const res = await getTrusts();
-        setTrustOptions(Array.isArray(res?.data) ? res.data : []);
+        setTrustOptions(filterTrustsByAccess(res?.data || [], userProfile));
       } catch (err) {
         console.error(err);
       }
     };
 
     fetchLookupData();
-  }, []);
+  }, [userProfile]);
 
   useEffect(() => {
     if (!routeInterfaceName || !routeDirection) {
@@ -354,6 +356,55 @@ const SendMail = () => {
 
     fetchInterfaces();
   }, [selectedTrustId, selectedType]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const fetchCcRecipients = async () => {
+      if (!selectedTrustId) {
+        setCc([]);
+        setCcRecipientError("");
+        return;
+      }
+
+      try {
+        setCcRecipientLoading(true);
+        setCcRecipientError("");
+
+        const response = await getTrustBauRecipients(selectedTrustId);
+        const recipients = uniqueValues(
+          getListFromApiResponse(response).flatMap(getSupportEmails)
+        ).filter((email) => EMAIL_REGEX.test(email));
+
+        if (!isActive) {
+          return;
+        }
+
+        setCc(recipients);
+        if (recipients.length) {
+          setErrors((prev) => (prev.cc ? { ...prev, cc: null } : prev));
+        }
+      } catch (err) {
+        if (!isActive) {
+          return;
+        }
+
+        console.error("Error fetching CC recipients for trust:", err);
+        setCc([]);
+        setCcRecipientError("Unable to load CC recipients for this trust.");
+      } finally {
+        if (isActive) {
+          setCcRecipientLoading(false);
+        }
+      }
+    };
+
+    fetchCcRecipients();
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedTrustId]);
 
   useEffect(() => {
     if (skipNextInterfaceResetRef.current) {
@@ -842,6 +893,8 @@ const SendMail = () => {
       subject,
       body,
       html: true,
+      interfaceName: selectedInterfaceName,
+      trustId: Number(selectedTrustId),
     };
 
     const res = await axiosInstance.post("/emails/send", payload, {
@@ -920,9 +973,6 @@ const SendMail = () => {
   /* ================= OUTSIDE CLICK ================= */
   useEffect(() => {
     const handler = (e) => {
-      if (ccInputRef.current && !ccInputRef.current.contains(e.target)) {
-        setShowCcDropdown(false);
-      }
       if (
         showPhoneTooltip &&
         toInputRef.current &&
@@ -1201,7 +1251,7 @@ const SendMail = () => {
         {/* CC */}
         <div className="form-group">
           <label>CC (Optional):</label>
-          <div className="dropdown-input recipient-input" ref={ccInputRef}>
+          <div className="dropdown-input recipient-input">
             {cc.map((email, i) => (
               <span key={i} className="selected-email">
                 {email}
@@ -1216,7 +1266,6 @@ const SendMail = () => {
             <input
               value={ccInputValue}
               className={errors.cc ? "input-invalid" : ""}
-              onFocus={() => setShowCcDropdown(true)}
               onChange={(e) => {
                 setCcInputValue(e.target.value);
                 if (errors.cc) {
@@ -1239,9 +1288,18 @@ const SendMail = () => {
                   validateUpTo("cc");
                 }
               }}
-              placeholder={cc.length ? "Type another email" : "Enter email"}
+              placeholder={
+                ccRecipientLoading
+                  ? "Loading CC recipients..."
+                  : cc.length
+                  ? "Type another email"
+                  : "Enter email"
+              }
             />
           </div>
+          {ccRecipientError && (
+            <span className="input-error">{ccRecipientError}</span>
+          )}
           {errors.cc && <span className="input-error">{errors.cc}</span>}
         </div>
 

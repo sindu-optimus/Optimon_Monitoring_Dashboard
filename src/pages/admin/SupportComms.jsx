@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import SupportCommsForm from "../../components/SupportCommsForm";
+import SearchBar from "../../components/SearchBar";
 import {
   createSupportContact,
   deleteSupportContact,
@@ -213,6 +214,7 @@ export default function SupportComms({ userProfile = null }) {
   const [trusts, setTrusts] = useState([]);
   const [selectedTrustId, setSelectedTrustId] = useState("");
   const [selectedDirection, setSelectedDirection] = useState("");
+  const [searchValue, setSearchValue] = useState("");
   const [supportContacts, setSupportContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -305,6 +307,8 @@ export default function SupportComms({ userProfile = null }) {
       trusts.map((trust) => [String(trust.id), trust.name || "-"])
     );
 
+    const searchText = searchValue.trim().toLowerCase();
+
     return supportContacts
       .map((item) => toSupportContactRow(item, trustNameById))
       .filter((item) => {
@@ -315,8 +319,20 @@ export default function SupportComms({ userProfile = null }) {
         //   ? true
         //   : item.direction === selectedDirection;
 
-        return trustMatches 
-        // && directionMatches;
+        const searchableText = [
+          item.trustName,
+          item.direction,
+          item.interfaceName,
+          item.originatingSystemDepartment,
+          item.supportContactName,
+          item.telephoneMobile,
+          item.supportEmails,
+          item.updatedOn,
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        return trustMatches && (!searchText || searchableText.includes(searchText));
 
       })
       .sort((a, b) => a.interfaceName.localeCompare(b.interfaceName))
@@ -324,7 +340,7 @@ export default function SupportComms({ userProfile = null }) {
         ...item,
         serialNo: index + 1,
       }));
-  }, [selectedDirection, selectedTrustId, supportContacts, trusts]);
+  }, [searchValue, selectedDirection, selectedTrustId, supportContacts, trusts]);
 
   const totalPages = Math.max(1, Math.ceil(allTableRows.length / pageSize));
   const paginatedTableRows = useMemo(() => {
@@ -343,7 +359,7 @@ export default function SupportComms({ userProfile = null }) {
 
   useEffect(() => {
     setCurrentPage(0);
-  }, [selectedTrustId, selectedDirection]);
+  }, [searchValue, selectedTrustId, selectedDirection]);
 
   useEffect(() => {
     if (currentPage >= totalPages) {
@@ -539,6 +555,14 @@ export default function SupportComms({ userProfile = null }) {
             <option value={DIRECTION_OPTIONS.INBOUND}>INBOUND</option>
           </select>
         </label>
+
+        <SearchBar
+          className="emails-search"
+          label="Search"
+          value={searchValue}
+          onChange={setSearchValue}
+          placeholder="Search support contacts..."
+        />
 
         <div className="emails-toolbar-actions">
           <button

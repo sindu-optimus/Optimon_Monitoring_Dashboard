@@ -32,6 +32,11 @@
   font-weight: 500;
 }
 
+.emails-search {
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+
 .emails-filter-select {
   height: 42px;
   padding: 0 12px;

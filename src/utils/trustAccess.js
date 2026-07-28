@@ -25,15 +25,18 @@ const isTrustActive = (trust) => {
   return false;
 };
 
-export const filterTrustsByAccess = (trusts = [], userProfile) => {
+export const filterTrustsByUserAccess = (trusts = [], userProfile) => {
   const allowedTrustIds = getAllowedTrustIds(userProfile);
-  const activeTrusts = (Array.isArray(trusts) ? trusts : []).filter(isTrustActive);
+  const trustList = Array.isArray(trusts) ? trusts : [];
 
   if (allowedTrustIds.length === 0) {
-    return activeTrusts;
+    return trustList;
   }
 
-  return activeTrusts.filter((trust) =>
+  return trustList.filter((trust) =>
     allowedTrustIds.includes(Number(trust?.id))
   );
 };
+
+export const filterTrustsByAccess = (trusts = [], userProfile) =>
+  filterTrustsByUserAccess(trusts, userProfile).filter(isTrustActive);
